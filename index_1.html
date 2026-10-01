@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Loopbaan GPS — prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=DM+Sans:opsz,wght@9..40,400;9..40,500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --terra:#C15E3C; --terra-d:#9E4526; --terra-l:#E08A64;
+    --staal:#3F6EA8; --staal-d:#274d7d; --staal-l:#6E97CC;
+    --salie:#6E9268; --salie-d:#4c6b47; --salie-l:#93B58C;
+    --amber:#CE8A25; --amber-d:#96610f; --amber-l:#E7AE52;
+    --ink:#2A2620; --muted:#7C766B; --line:rgba(42,38,32,.10);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"DM Sans",system-ui,sans-serif;color:var(--ink);
+    background:#EFE9DF;
+    background-image:radial-gradient(1100px 720px at 50% 0%, #FBF8F2, transparent 62%),
+      radial-gradient(900px 600px at 50% 110%, rgba(63,110,168,.10), transparent 60%);
+    min-height:100vh;padding:40px 20px 64px}
+  #app{width:100%;max-width:600px;margin:0 auto}
+  .center{text-align:center}
+  .eyebrow{font-family:"DM Mono",monospace;font-size:12px;letter-spacing:.03em}
+  h1{font-family:"Cormorant Garamond",serif;font-weight:500;line-height:1.1}
+  .h-xl{font-size:52px}.h-l{font-size:40px}.h-m{font-size:30px}
+  .sub{color:var(--muted);font-size:15.5px;margin-top:10px;max-width:44ch;margin-left:auto;margin-right:auto;line-height:1.55}
+
+  .card{background:rgba(255,255,255,.66);backdrop-filter:blur(20px) saturate(150%);-webkit-backdrop-filter:blur(20px) saturate(150%);
+    border:1px solid rgba(255,255,255,.9);border-radius:22px;padding:26px 24px;
+    box-shadow:0 22px 46px -22px rgba(42,38,32,.35),0 2px 6px rgba(42,38,32,.07),inset 0 1px 0 rgba(255,255,255,.9)}
+  .card + .card{margin-top:16px}
+
+  .btn{border:none;border-radius:16px;padding:16px 22px;font-family:"DM Sans",sans-serif;font-size:16px;font-weight:500;
+    color:#fff;cursor:pointer;width:100%;box-shadow:0 16px 30px -12px rgba(42,38,32,.4),inset 0 2px 3px rgba(255,255,255,.3);transition:transform .1s}
+  .btn:active{transform:scale(.985)}
+  .btn.ink{background:radial-gradient(120% 140% at 40% 20%, #4a443b, var(--ink) 70%)}
+  .btn.salie{background:radial-gradient(120% 140% at 40% 20%, var(--salie-l), var(--salie) 60%, var(--salie-d))}
+  .btn.ghost{background:rgba(42,38,32,.05);color:var(--muted);border:1px solid var(--line);box-shadow:inset 0 1px 0 rgba(255,255,255,.7)}
+  .ghost-link{display:block;text-align:center;margin-top:14px;color:var(--muted);font-size:13.5px;background:none;border:none;cursor:pointer;width:100%}
+
+  /* progress satellites */
+  .prog{display:flex;align-items:center;gap:14px;margin-bottom:26px}
+  .prog .steps{display:flex;gap:6px;flex:1}
+  .prog .steps i{height:6px;border-radius:99px;flex:1;background:rgba(42,38,32,.12)}
+  .prog .steps i.on{background:var(--salie)}
+  .prog .lbl{font-family:"DM Mono",monospace;font-size:11.5px;color:var(--muted);white-space:nowrap}
+  .modbadge{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0}
+  .modbadge svg{width:20px;height:20px}
+  .bg-terra{background:radial-gradient(circle at 36% 30%, var(--terra-l), var(--terra) 62%, var(--terra-d));box-shadow:0 8px 16px -6px rgba(193,94,60,.6)}
+  .bg-staal{background:radial-gradient(circle at 36% 30%, var(--staal-l), var(--staal) 62%, var(--staal-d));box-shadow:0 8px 16px -6px rgba(63,110,168,.6)}
+  .bg-salie{background:radial-gradient(circle at 36% 30%, var(--salie-l), var(--salie) 62%, var(--salie-d));box-shadow:0 8px 16px -6px rgba(110,146,104,.6)}
+  .bg-amber{background:radial-gradient(circle at 36% 30%, var(--amber-l), var(--amber) 62%, var(--amber-d));box-shadow:0 8px 16px -6px rgba(206,138,37,.55)}
+
+  /* forced choice cards */
+  .choices{display:grid;gap:14px;margin-top:24px}
+  .choice{background:rgba(255,255,255,.7);border:1px solid var(--line);border-radius:18px;padding:22px;font-size:17px;cursor:pointer;text-align:left;
+    box-shadow:0 10px 22px -14px rgba(42,38,32,.4),inset 0 1px 0 rgba(255,255,255,.8);transition:transform .1s, border-color .15s}
+  .choice:hover{border-color:var(--terra-l)}
+  .choice:active{transform:scale(.99)}
+
+  /* value chips */
+  .chips{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:22px}
+  .chip{background:rgba(255,255,255,.7);border:1.5px solid var(--line);border-radius:15px;padding:16px;font-size:14.5px;cursor:pointer;text-align:left;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.8);transition:.15s}
+  .chip.on{border-color:var(--staal);background:rgba(63,110,168,.10);color:var(--staal-d);font-weight:500}
+  .chip .num{font-family:"DM Mono",monospace;font-size:11px;color:var(--staal);margin-right:6px}
+
+  /* sliders */
+  .axis + .axis{margin-top:28px;padding-top:26px;border-top:1px solid var(--line)}
+  .poles{display:flex;justify-content:space-between;margin-bottom:12px}
+  .pole{max-width:44%}.pole.r{text-align:right}
+  .pole .t{font-size:16px;font-weight:500}.pole .d{font-size:12px;color:var(--muted);margin-top:2px;line-height:1.35}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:10px;border-radius:99px;outline:none;margin-top:6px;
+    background:linear-gradient(90deg,var(--salie-l),#E7E0D4 50%,var(--salie-l));box-shadow:inset 0 1px 3px rgba(42,38,32,.18)}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:32px;height:32px;border-radius:50%;cursor:grab;
+    background:radial-gradient(circle at 36% 30%,#fff,#F1EBE0 70%,#E3DACB);border:1px solid rgba(42,38,32,.12);
+    box-shadow:0 8px 16px -5px rgba(42,38,32,.4),inset 0 2px 3px rgba(255,255,255,.9)}
+  input[type=range]::-moz-range-thumb{width:32px;height:32px;border-radius:50%;background:radial-gradient(circle at 36% 30%,#fff,#E3DACB);border:1px solid rgba(42,38,32,.12)}
+  .read{text-align:center;font-family:"DM Mono",monospace;font-size:12px;color:var(--salie-d);margin-top:10px}
+
+  /* likert */
+  .lik{padding:16px 0;border-bottom:1px solid var(--line)}
+  .lik:last-child{border-bottom:none}
+  .lik .q{font-size:15.5px;margin-bottom:10px}
+  .dots{display:flex;gap:8px}
+  .dots button{flex:1;height:38px;border-radius:11px;border:1.5px solid var(--line);background:rgba(255,255,255,.6);cursor:pointer;
+    font-family:"DM Mono",monospace;font-size:13px;color:var(--muted)}
+  .dots button.on{background:radial-gradient(circle at 40% 30%,var(--amber-l),var(--amber) 65%);color:#fff;border-color:transparent;box-shadow:0 6px 12px -5px rgba(206,138,37,.6)}
+
+  /* result */
+  .sigrow{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:4px}
+  .sig{border-radius:16px;padding:15px 16px;color:#fff;box-shadow:0 12px 24px -12px rgba(42,38,32,.5),inset 0 2px 3px rgba(255,255,255,.3)}
+  .sig .lab{font-family:"DM Mono",monospace;font-size:10.5px;opacity:.85;letter-spacing:.03em}
+  .sig .val{font-size:16px;font-weight:500;margin-top:4px;line-height:1.25}
+  .tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+  .tag{background:rgba(42,38,32,.06);border:1px solid var(--line);border-radius:99px;padding:7px 14px;font-size:13.5px}
+  details{margin-top:16px;border-top:1px solid var(--line);padding-top:14px}
+  summary{cursor:pointer;font-size:14.5px;font-weight:500;color:var(--staal-d);list-style:none}
+  summary::-webkit-details-marker{display:none}
+  summary::before{content:"▸ ";color:var(--staal)}
+  details[open] summary::before{content:"▾ "}
+  .step{font-size:14px;color:var(--muted);margin-top:10px;line-height:1.5;padding-left:14px;border-left:2px solid var(--line)}
+  .reflect .q{font-size:15.5px;margin-top:12px;padding-left:16px;position:relative}
+  .reflect .q::before{content:"—";position:absolute;left:0;color:var(--terra)}
+
+  @media (max-width:520px){.chips{grid-template-columns:1fr}.h-xl{font-size:42px}.h-l{font-size:34px}}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important}}
+  @media print{body{background:#fff;padding:0}.card{box-shadow:none;border:1px solid #ddd}.noprint{display:none!important}}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+/* ---------------- DATA ---------------- */
+const RIASEC = {R:"Realistisch",I:"Intellectueel",A:"Artistiek",S:"Sociaal",W:"Ondernemend",C:"Conventioneel"};
+/* Volledig gebalanceerd: alle 15 mogelijke paren (R,I,A,S,W,C) komen elk precies
+   1x voor, in willekeurige volgorde — geen enkel type wordt vaker afgezet
+   tegen een ander type dan de rest. */
+const M1 = [
+  {a:{t:"Met je handen iets afmaken",c:"R"}, b:{t:"Een administratie kloppend maken",c:"C"}},
+  {a:{t:"Een probleem grondig analyseren",c:"I"}, b:{t:"Een verhaal, beeld of ontwerp maken",c:"A"}},
+  {a:{t:"Iemand persoonlijk verder helpen",c:"S"}, b:{t:"Een team of project leiden",c:"W"}},
+  {a:{t:"Iets in elkaar zetten of repareren",c:"R"}, b:{t:"Uitzoeken waarom iets werkt",c:"I"}},
+  {a:{t:"Vrij en creatief werken, zonder vast stramien",c:"A"}, b:{t:"Structuur en overzicht aanbrengen",c:"C"}},
+  {a:{t:"Iets grondig uitzoeken voordat je beslist",c:"I"}, b:{t:"Volgens duidelijke regels werken",c:"C"}},
+  {a:{t:"Zorgen dat techniek werkt",c:"R"}, b:{t:"Een eigen initiatief starten",c:"W"}},
+  {a:{t:"Je eigen stijl laten zien in wat je maakt",c:"A"}, b:{t:"Anderen begeleiden of lesgeven",c:"S"}},
+  {a:{t:"Mensen samenbrengen en verbinden",c:"S"}, b:{t:"Nauwkeurig gegevens verwerken",c:"C"}},
+  {a:{t:"Onderzoek doen naar een vraag",c:"I"}, b:{t:"Een groep enthousiasmeren voor een plan",c:"W"}},
+  {a:{t:"Met gereedschap of techniek werken",c:"R"}, b:{t:"Iets bedenken dat nog niet bestaat",c:"A"}},
+  {a:{t:"Een eigen idee tot leven brengen",c:"A"}, b:{t:"Anderen meekrijgen in jouw plan",c:"W"}},
+  {a:{t:"Buiten of praktisch bezig zijn",c:"R"}, b:{t:"Contact maken met nieuwe mensen",c:"S"}},
+  {a:{t:"Data en feiten uitpluizen",c:"I"}, b:{t:"Iemand helpen die vastloopt",c:"S"}},
+  {a:{t:"Een eigen plan trekken en risico nemen",c:"W"}, b:{t:"Volgens een vast systeem werken",c:"C"}}
+];
+const VALUES = [
+  {id:"W01",l:"Iets betekenen voor anderen"},{id:"W02",l:"Bijdragen aan een eerlijkere wereld"},
+  {id:"W03",l:"Vrijheid en zelf bepalen hoe ik werk"},{id:"W04",l:"Nieuwe dingen ontdekken en leren"},
+  {id:"W05",l:"Ergens goed in worden en presteren"},{id:"W06",l:"Invloed hebben en dingen in beweging zetten"},
+  {id:"W07",l:"Zekerheid en een stabiele basis"},{id:"W08",l:"Ergens bij horen, samen optrekken"},
+  {id:"W09",l:"Zorgvuldig en betrouwbaar werk leveren"},{id:"W10",l:"Plezier en energie in wat ik doe"}
+];
+const COMP = [
+  {id:"KC02",n:"Kritisch denken en oordelen"},{id:"KC07",n:"Communiceren"},{id:"KC08",n:"Samenwerken"},
+  {id:"KC03",n:"Problemen oplossen"},{id:"KC05",n:"Reflecteren op jezelf"},{id:"KC09",n:"Oog voor mensen"},
+  {id:"KC10",n:"Plannen en organiseren"},{id:"KC11",n:"Digitaal vaardig zijn"}
+];
+const GROUPS = [
+  {id:"BG01",naam:"Mens, zorg & gedrag",zin:"werk waarin je mensen helpt én wilt begrijpen",
+    opl:["Toegepaste Psychologie","Social Work","Pedagogiek","Gezondheidswetenschappen"],
+    ber:["psycholoog","sociaal werker","pedagoog","verpleegkundige"],
+    riasec:{S:3,I:2,W:1,A:1,C:0,R:0}, env:{Mensen:3,Ideeen:2,Data:1,Dingen:0}, val:["W01","W02","W04"], comp:["KC07","KC08","KC02","KC05","KC09"]},
+  {id:"BG02",naam:"Techniek, ICT & ontwerp",zin:"werk waarin je dingen maakt en laat werken",
+    opl:["HBO-ICT","Werktuigbouwkunde","Technische Bedrijfskunde","Industrieel Product Ontwerpen"],
+    ber:["software-ontwikkelaar","ingenieur","dataspecialist","ontwerper"],
+    riasec:{R:3,I:3,C:1,A:1,W:0,S:0}, env:{Dingen:3,Data:3,Ideeen:2,Mensen:0}, val:["W04","W05","W03"], comp:["KC03","KC11","KC10","KC02"]},
+  {id:"BG03",naam:"Onderwijs & begeleiding",zin:"werk waarin je anderen laat groeien",
+    opl:["Lerarenopleiding","Onderwijskunde","Pedagogiek","Toegepaste Psychologie"],
+    ber:["docent","trainer","studiebegeleider","onderwijsontwikkelaar"],
+    riasec:{S:3,A:1,I:1,W:1,C:1,R:0}, env:{Mensen:3,Ideeen:2,Data:1,Dingen:0}, val:["W01","W04","W09"], comp:["KC07","KC09","KC05","KC08"]},
+  {id:"BG04",naam:"Economie, management & ondernemen",zin:"werk waarin je dingen in beweging zet",
+    opl:["Bedrijfskunde","HRM","Commerciële Economie","Bedrijfseconomie"],
+    ber:["manager","ondernemer","adviseur","HR-professional"],
+    riasec:{W:3,C:2,S:1,I:1,A:0,R:0}, env:{Data:3,Mensen:2,Ideeen:2,Dingen:0}, val:["W06","W05","W03"], comp:["KC07","KC10","KC03","KC08"]},
+  {id:"BG05",naam:"Creatief, media & communicatie",zin:"werk waarin je ideeën vorm geeft",
+    opl:["Communicatie","Creative Media & Game Technologies","Communication & Multimedia Design"],
+    ber:["vormgever","communicatieadviseur","contentmaker","journalist"],
+    riasec:{A:3,W:2,S:1,I:1,C:0,R:0}, env:{Ideeen:3,Mensen:2,Data:1,Dingen:0}, val:["W03","W04","W10"], comp:["KC07","KC03","KC11","KC05"]},
+  {id:"BG06",naam:"Recht, bestuur & orde",zin:"werk waarin je zorgt voor structuur en rechtvaardigheid",
+    opl:["HBO-Rechten","Bestuurskunde","Integrale Veiligheidskunde"],
+    ber:["juridisch medewerker","beleidsadviseur","handhaver","bestuurskundige"],
+    riasec:{C:3,W:2,I:1,S:1,A:0,R:0}, env:{Data:3,Mensen:2,Ideeen:2,Dingen:0}, val:["W02","W07","W09"], comp:["KC02","KC10","KC07"]}
+];
+const ENVLABEL={Mensen:"Mensen",Dingen:"Dingen",Data:"Data",Ideeen:"Ideeën"};
+
+/* verdiepingsvraag: verschijnt alleen bij een sterk mensgericht of gelijk-op profiel */
+const SOCIALGROUPS=["BG01","BG03"];
+const FOCUS={
+  verzorgen:{keuze:"Iemand verzorgen en nabij zijn op een kwetsbaar moment", pref:"BG01",
+    sub:"de zorgende kant", ber:["verpleegkundige","verzorgende IG","begeleider","verpleegkundig specialist"],
+    opl:["Verpleegkunde","Gezondheidszorg","Social Work"]},
+  groeien:{keuze:"Iemand laten groeien en zich laten ontwikkelen", pref:"BG03",
+    sub:"de ontwikkelende kant", ber:["docent","coach","trainer","jeugdwerker"],
+    opl:["Lerarenopleiding","Pedagogiek","Onderwijskunde"]},
+  begrijpen:{keuze:"Begrijpen waaróm mensen doen wat ze doen", pref:"BG01",
+    sub:"de verklarende kant", ber:["psycholoog","gedragswetenschapper","orthopedagoog","onderzoeker"],
+    opl:["Toegepaste Psychologie","Psychologie","Pedagogische Wetenschappen"]},
+  opkomen:{keuze:"Voor mensen opkomen en dingen voor ze regelen", pref:"BG01",
+    sub:"de opkomende kant", ber:["sociaal werker","maatschappelijk werker","belangenbehartiger","beleidsadviseur"],
+    opl:["Social Work","Bestuurskunde","HBO-Rechten"]}
+};
+
+/* ---- Twijfelhulp: finetuning, laatste stap (sociaal domein) ---- */
+const OPL={
+  pabo:{naam:"Pabo (leraar basisonderwijs)",as1:"direct",dom:"leren",
+    kern:"Hoe help ik kinderen iets écht leren?",voorwie:"kinderen, in een klas of groep",
+    werk:"zelf lesgeven en begeleiden — je staat vóór de groep",
+    mis:"dat het vooral 'van kinderen houden' is; didactiek en vakkennis wegen minstens zo zwaar"},
+  social:{naam:"Social Work",as1:"direct",dom:"welzijn",
+    kern:"Hoe help ik iemand die vastloopt weer verder?",voorwie:"mensen in kwetsbare situaties, van jong tot oud",
+    werk:"ondersteunen, verbinden, regelen en opkomen voor mensen",
+    mis:"dat het 'soft' is; het vraagt juist stevigheid, grenzen en samenwerken met instanties"},
+  pedagogiek:{naam:"Pedagogiek",as1:"systeem",dom:"leren",
+    kern:"Waarom groeien kinderen op zoals ze doen — en wat hebben ze nodig?",voorwie:"kinderen en jongeren, vaak via ouders, school of beleid",
+    werk:"begrijpen, adviseren en ontwikkelen — meer denken over opvoeding dan zelf lesgeven",
+    mis:"dat het hetzelfde is als de pabo; pedagogiek beschouwt en adviseert, de pabo voert uit"},
+  hrm:{naam:"HRM",as1:"systeem",dom:"werk",
+    kern:"Hoe komen mensen én organisatie tot bloei op het werk?",voorwie:"medewerkers en de organisatie als geheel",
+    werk:"beleid maken, adviseren en begeleiden rond werk, ontwikkeling en cultuur",
+    mis:"dat het 'personeelszaken en regeltjes' is; het gaat over mensen laten groeien binnen een organisatie"},
+  verpleegkunde:{naam:"Verpleegkunde",as1:"direct",dom:"gezondheid",
+    kern:"Hoe zorg ik voor iemand op een kwetsbaar moment?",voorwie:"patiënten en hun naasten",
+    werk:"verzorgen, behandelen en begeleiden — dichtbij en praktisch",
+    mis:"dat het alleen 'lief zorgen' is; het vraagt klinisch denken, snelheid en verantwoordelijkheid"}
+};
+const DOMLABEL={leren:"leren & ontwikkeling",welzijn:"welzijn & meedoen",werk:"werk & organisatie",gezondheid:"gezondheid & zorg"};
+
+/* ---- Verrijking resultaat: typebeschrijvingen + concrete beroepen (O -> W) ---- */
+const TYPEMETA={
+  R:{naam:"Realistisch",tagline:"Ik werk liever met mijn handen dan met woorden",uitleg:"Je lost praktische problemen graag stap voor stap op, met tastbaar resultaat.",woorden:["praktisch","technisch","hands-on","precisie"]},
+  I:{naam:"Intellectueel",tagline:"Ik wil begrijpen hoe dingen werken",uitleg:"Je bent nieuwsgierig, zoekt patronen en houdt van onderzoek en diepgang.",woorden:["analytisch","nieuwsgierig","onderzoekend","logisch"]},
+  A:{naam:"Artistiek",tagline:"Ik druk mezelf het liefst creatief uit",uitleg:"Je maakt, ontwerpt of schrijft graag en let op sfeer, vorm en eigen stijl.",woorden:["creatief","expressief","origineel","esthetisch"]},
+  S:{naam:"Sociaal",tagline:"Ik help anderen en werk graag samen",uitleg:"Je luistert goed, legt uit en zorgt dat iedereen meedoet.",woorden:["empathisch","coachend","samenwerkend","betrokken"]},
+  W:{naam:"Ondernemend",tagline:"Ik neem graag het voortouw en overtuig anderen",uitleg:"Je neemt initiatief, denkt in kansen en brengt ideeën naar buiten.",woorden:["initiatiefrijk","overtuigend","energiek","ondernemend"]},
+  C:{naam:"Conventioneel",tagline:"Ik hou van structuur, orde en nauwkeurig werken",uitleg:"Je werkt graag volgens duidelijke regels, planning en procedures.",woorden:["gestructureerd","nauwkeurig","betrouwbaar","planmatig"]}
+};
+const BEROEPEN=[
+  {code:"R",beroep:"Elektricien",opleiding:"Elektrotechniek (hbo)",omschrijving:"Installeert en onderhoudt elektrische systemen."},
+  {code:"R",beroep:"Werktuigbouwkundige",opleiding:"Werktuigbouwkunde (hbo)",omschrijving:"Ontwerpt en beheert mechanische systemen."},
+  {code:"R",beroep:"IT-beheerder",opleiding:"HBO-ICT / Informatica",omschrijving:"Beheert netwerken, servers en IT-infrastructuur."},
+  {code:"R",beroep:"Bouwkundig opzichter",opleiding:"Bouwkunde (hbo)",omschrijving:"Leidt en controleert bouwprocessen op locatie."},
+  {code:"I",beroep:"Onderzoeker",opleiding:"Toegepaste Biologie / Chemie (hbo)",omschrijving:"Doet systematisch onderzoek naar wetenschappelijke vraagstukken."},
+  {code:"I",beroep:"Data-analist",opleiding:"HBO-ICT / Data Science",omschrijving:"Analyseert grote datasets en trekt conclusies."},
+  {code:"I",beroep:"Toegepast psycholoog",opleiding:"Toegepaste Psychologie (hbo)",omschrijving:"Onderzoekt menselijk gedrag en past dit toe in de praktijk."},
+  {code:"I",beroep:"Milieuadviseur",opleiding:"Milieukunde (hbo)",omschrijving:"Adviseert over duurzaamheid en milieu."},
+  {code:"A",beroep:"Grafisch ontwerper",opleiding:"Communicatiedesign (hbo)",omschrijving:"Maakt visuele communicatie voor print en digitaal."},
+  {code:"A",beroep:"Journalist",opleiding:"Journalistiek (hbo)",omschrijving:"Onderzoekt nieuws en vertelt verhalen voor diverse media."},
+  {code:"A",beroep:"Game designer",opleiding:"Game Design / Media (hbo)",omschrijving:"Ontwikkelt games en interactieve ervaringen."},
+  {code:"A",beroep:"Content creator",opleiding:"Communicatie / Media (hbo)",omschrijving:"Produceert tekst, beeld en video voor digitale platforms."},
+  {code:"S",beroep:"Leraar basisonderwijs",opleiding:"Pabo (hbo)",omschrijving:"Begeleidt jonge kinderen in hun leer- en ontwikkelproces."},
+  {code:"S",beroep:"Maatschappelijk werker",opleiding:"Social Work (hbo)",omschrijving:"Ondersteunt mensen in kwetsbare situaties."},
+  {code:"S",beroep:"Verpleegkundige",opleiding:"Verpleegkunde (hbo)",omschrijving:"Verleent medische zorg en begeleidt patiënten."},
+  {code:"S",beroep:"HR-adviseur",opleiding:"Human Resource Management (hbo)",omschrijving:"Begeleidt medewerkers en ontwikkelt personeelsbeleid."},
+  {code:"S",beroep:"Pedagogisch begeleider",opleiding:"Pedagogiek (hbo)",omschrijving:"Begeleidt kinderen en jongeren in hun ontwikkeling."},
+  {code:"W",beroep:"Manager / Teamleider",opleiding:"Bedrijfskunde / Management (hbo)",omschrijving:"Stuurt teams aan en neemt strategische beslissingen."},
+  {code:"W",beroep:"Marketing specialist",opleiding:"Commerciële Economie (hbo)",omschrijving:"Ontwikkelt campagnes om producten te promoten."},
+  {code:"W",beroep:"Ondernemer",opleiding:"Entrepreneurship / IBS (hbo)",omschrijving:"Bouwt een eigen bedrijf of project op."},
+  {code:"W",beroep:"Jurist (hbo)",opleiding:"HBO-Rechten",omschrijving:"Adviseert over juridische kwesties."},
+  {code:"W",beroep:"Communicatieadviseur",opleiding:"Communicatie (hbo)",omschrijving:"Ontwikkelt communicatiestrategieën voor organisaties."},
+  {code:"C",beroep:"Accountant",opleiding:"Accountancy (hbo)",omschrijving:"Controleert en rapporteert over financiële administratie."},
+  {code:"C",beroep:"Logistiek manager",opleiding:"Logistiek & Economie (hbo)",omschrijving:"Optimaliseert transport- en distributieprocessen."},
+  {code:"C",beroep:"Bedrijfsadministrateur",opleiding:"Bedrijfseconomie (hbo)",omschrijving:"Beheert financiële en administratieve processen."},
+  {code:"C",beroep:"Kwaliteitsmanager",opleiding:"Technische Bedrijfskunde (hbo)",omschrijving:"Bewaakt kwaliteitsnormen en verbetert werkprocessen."}
+];
+function beroepenVoorTop(topCodes,max){const set=new Set(topCodes);const m=BEROEPEN.filter(b=>set.has(b.code));return m.slice(0,max||4);}
+
+/* ---------------- STATE ---------------- */
+const STORAGE_KEY = "loopbaan-gps-state-v1";
+const S = { screen:"intro", m1i:0, m1hist:[], riasec:{R:0,I:0,A:0,S:0,W:0,C:0}, values:[], env:{s1:50,s2:50}, comp:{}, focus:null, relayFrom:null, tw:{chosen:[],as1:null,dom:null} };
+const app = document.getElementById("app");
+
+/* ---------------- PERSISTENTIE (sessionStorage) ----------------
+   Bewaart alleen binnen dit tabblad/apparaat, nooit verstuurd. Voorkomt dat
+   een per-ongeluk-refresh midden in de test alle voortgang wist. */
+function saveState(){
+  try{ sessionStorage.setItem(STORAGE_KEY, JSON.stringify(S)); }catch(e){ /* privé-venster o.i.d. — negeren */ }
+}
+function loadState(){
+  try{
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    if(!raw) return false;
+    const parsed = JSON.parse(raw);
+    Object.assign(S, parsed);
+    return true;
+  }catch(e){ return false; }
+}
+function clearState(){
+  try{ sessionStorage.removeItem(STORAGE_KEY); }catch(e){}
+}
+
+/* ---------------- HELPERS ---------------- */
+const svg = {
+  compass:'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7"><circle cx="12" cy="12" r="8"/><path d="M12 12l3.5-5.5-5.5 3.5z" fill="#fff" stroke="none"/></svg>',
+  scale:'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7"><path d="M12 4v16M5 9h14M7 9l-2 5a3 3 0 006 0zM17 9l-2 5a3 3 0 006 0z"/></svg>',
+  land:'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7"><path d="M3 17l5-6 4 4 3-4 6 6M3 17v3h18v-3"/></svg>',
+  gear:'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7"><circle cx="12" cy="12" r="3.3"/><path d="M12 4v2.6M12 17.4V20M4 12h2.6M17.4 12H20M6.3 6.3l1.9 1.9M15.8 15.8l1.9 1.9M17.7 6.3l-1.9 1.9M8.2 15.8l-1.9 1.9"/></svg>'
+};
+const MODS=[{k:"terra",ic:svg.compass,nm:"Interesses"},{k:"staal",ic:svg.scale,nm:"Werkwaarden"},{k:"salie",ic:svg.land,nm:"Werkomgeving"},{k:"amber",ic:svg.gear,nm:"Competenties"}];
+function progress(n){ // n = current module 1..4
+  const m=MODS[n-1];
+  let steps=""; for(let i=1;i<=4;i++) steps+=`<i class="${i<=n?'on':''}"></i>`;
+  return `<div class="prog"><div class="modbadge bg-${m.k}">${m.ic}</div>
+    <div class="steps" style="flex:1">${steps}</div>
+    <div class="lbl">Signaal ${n}/4</div></div>`;
+}
+function envScores(){return{Mensen:S.env.s1/100*3,Dingen:(100-S.env.s1)/100*3,Ideeen:S.env.s2/100*3,Data:(100-S.env.s2)/100*3};}
+function riasecTop(k){return Object.entries(S.riasec).sort((a,b)=>b[1]-a[1]).slice(0,k).map(e=>e[0]);}
+
+/* ---------------- SCORING ---------------- */
+function compute(){
+  const env=envScores();
+  const rmax=Math.max(1,...Object.values(S.riasec));
+  return GROUPS.map(g=>{
+    // riasec
+    let rDot=0,rNorm=0; for(const t in RIASEC){rDot+=(S.riasec[t]/rmax)*(g.riasec[t]||0); rNorm+=(g.riasec[t]||0);}
+    const rScore=rNorm?rDot/rNorm:0;
+    // env
+    let eDot=0,eNorm=0; for(const o in ENVLABEL){eDot+=(env[o]/3)*(g.env[o]||0); eNorm+=(g.env[o]||0);}
+    const eScore=eNorm?eDot/eNorm:0;
+    // values
+    const vScore=g.val.filter(v=>S.values.includes(v)).length/3;
+    // competenties
+    const rated=g.comp.map(c=>S.comp[c]).filter(x=>x); 
+    const cScore=rated.length?(rated.reduce((a,b)=>a+b,0)/rated.length)/5:0.5;
+    let total=.35*rScore+.20*eScore+.25*vScore+.20*cScore;
+    // verdiepingskeuze geeft de best passende groep een duidelijke duw
+    if(S.focus && FOCUS[S.focus].pref===g.id) total+=0.15;
+    return {g,total,rScore,eScore,vScore,cScore};
+  }).sort((a,b)=>b.total-a.total);
+}
+function needsDeepening(){
+  const r=compute();
+  return SOCIALGROUPS.includes(r[0].g.id) || (r[0].total-r[1].total)<0.06;
+}
+
+/* ---------------- SCREENS ---------------- */
+function render(){
+  if(S.screen==="intro") return intro();
+  if(S.screen==="m1") return m1();
+  if(S.screen==="m2") return m2();
+  if(S.screen==="m3") return m3();
+  if(S.screen==="m4") return m4();
+  if(S.screen==="deep") return deep();
+  if(S.screen==="relay") return relay();
+  if(S.screen==="result") return result();
+  if(S.screen==="twIntro") return twIntro();
+  if(S.screen==="twQ1") return twQ1();
+  if(S.screen==="twQ2") return twQ2();
+  if(S.screen==="twResult") return twResult();
+}
+function set(html){app.innerHTML=html;window.scrollTo(0,0);saveState();}
+
+function heroSVG(){
+  return `<svg viewBox="0 0 360 240" width="100%" style="max-width:380px;display:block;margin:0 auto" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#fff" stop-opacity=".9"/><stop offset="100%" stop-color="#fff" stop-opacity="0"/></radialGradient>
+      <filter id="sh" x="-40%" y="-40%" width="180%" height="180%"><feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#2A2620" flood-opacity=".22"/></filter>
+      <radialGradient id="core" cx="38%" cy="32%" r="75%"><stop offset="0%" stop-color="#fff"/><stop offset="70%" stop-color="#EDE6DA"/><stop offset="100%" stop-color="#E2D9CB"/></radialGradient>
+      <radialGradient id="t" cx="36%" cy="30%" r="70%"><stop offset="0%" stop-color="#E08A64"/><stop offset="62%" stop-color="#C15E3C"/><stop offset="100%" stop-color="#9E4526"/></radialGradient>
+      <radialGradient id="b" cx="36%" cy="30%" r="70%"><stop offset="0%" stop-color="#6E97CC"/><stop offset="62%" stop-color="#3F6EA8"/><stop offset="100%" stop-color="#274d7d"/></radialGradient>
+      <radialGradient id="g" cx="36%" cy="30%" r="70%"><stop offset="0%" stop-color="#93B58C"/><stop offset="62%" stop-color="#6E9268"/><stop offset="100%" stop-color="#4c6b47"/></radialGradient>
+      <radialGradient id="a" cx="36%" cy="30%" r="70%"><stop offset="0%" stop-color="#E7AE52"/><stop offset="62%" stop-color="#CE8A25"/><stop offset="100%" stop-color="#96610f"/></radialGradient>
+    </defs>
+    <circle cx="180" cy="120" r="120" fill="url(#glow)"/>
+    <circle cx="180" cy="120" r="100" fill="none" stroke="#2A2620" stroke-opacity=".10"/>
+    <circle cx="180" cy="120" r="62" fill="none" stroke="#2A2620" stroke-opacity=".10"/>
+    <g stroke="#2A2620" stroke-opacity=".12"><line x1="180" y1="120" x2="180" y2="24"/><line x1="180" y1="120" x2="276" y2="120"/><line x1="180" y1="120" x2="180" y2="216"/><line x1="180" y1="120" x2="84" y2="120"/></g>
+    <circle cx="180" cy="24" r="16" fill="url(#t)" filter="url(#sh)"/>
+    <circle cx="276" cy="120" r="16" fill="url(#b)" filter="url(#sh)"/>
+    <circle cx="180" cy="216" r="16" fill="url(#g)" filter="url(#sh)"/>
+    <circle cx="84" cy="120" r="16" fill="url(#a)" filter="url(#sh)"/>
+    <circle cx="180" cy="120" r="36" fill="url(#core)" filter="url(#sh)"/>
+    <text x="180" y="126" text-anchor="middle" font-family="Cormorant Garamond, serif" font-size="20" fill="#2A2620">Jij</text>
+  </svg>`;
+}
+function intro(){
+  set(`<div class="center" style="padding-top:6px">
+    ${heroSVG()}
+    <div class="eyebrow" style="color:var(--muted);margin-top:6px">52.0116° N · 5.0919° E</div>
+    <h1 class="h-xl" style="margin-top:10px">Loopbaan GPS</h1>
+    <p class="sub" style="font-size:17px;margin-top:6px">Bereken jouw route</p>
+    <div class="card" style="margin-top:24px;text-align:left">
+      <p style="font-size:15.5px;line-height:1.6;color:var(--ink)">Vier korte signalen — je interesses, je waarden, je werkomgeving en je competenties — samen wijzen ze een richting aan. Geen test met een uitslag, maar een spiegel om te verkennen.</p>
+      <p class="sub" style="margin-top:14px;text-align:left">4 stappen · ongeveer 5 minuten · je gegevens blijven op dit apparaat.</p>
+    </div>
+    <div style="margin-top:22px"><button class="btn ink" onclick="go('m1')">Start de route</button></div>
+  </div>`);
+}
+
+function m1(){
+  const q=M1[S.m1i];
+  set(`${progress(1)}
+    <div class="center"><div class="eyebrow" style="color:var(--terra-d)">interesses · vraag ${S.m1i+1} van ${M1.length}</div>
+    <h1 class="h-m" style="margin-top:10px">Wat spreekt je meer aan?</h1></div>
+    <div class="choices">
+      <button class="choice" onclick="pick('${q.a.c}')">${q.a.t}</button>
+      <button class="choice" onclick="pick('${q.b.c}')">${q.b.t}</button>
+    </div>
+    ${S.m1i>0?'<button class="ghost-link noprint" onclick="m1back()">← vorige</button>':''}`);
+}
+window.pick=(c)=>{ S.riasec[c]++; S.m1hist[S.m1i]=c; if(S.m1i<M1.length-1){S.m1i++; m1();} else {S.relayFrom='m1'; go('relay');} };
+window.m1back=()=>{
+  if(S.m1i>0){
+    const prevIdx = S.m1i-1;
+    const prev = S.m1hist[prevIdx];
+    if(prev && S.riasec[prev]>0) S.riasec[prev]--; // score van het laatste antwoord echt terugdraaien
+    S.m1hist.length = prevIdx; // dat antwoord telt niet meer mee tot opnieuw gekozen
+    S.m1i = prevIdx;
+    m1();
+  }
+};
+
+function mirror(from){
+  if(from==='m1'){const t=riasecTop(1)[0];return {
+    R:"Je lijkt iemand die graag met je handen werkt en dingen laat werken.",
+    I:"Je lijkt iemand die graag begrijpt hóe dingen werken.",
+    A:"Je lijkt iemand met een creatieve, ontwerpende blik.",
+    S:"Je lijkt iemand die energie krijgt van werken met mensen.",
+    W:"Je lijkt iemand die graag initiatief neemt en dingen in beweging zet.",
+    C:"Je lijkt iemand die houdt van overzicht en structuur."}[t];}
+  if(from==='m2'){const v=VALUES.find(x=>x.id===S.values[0]);return `Voor jou draait werk vooral om “${v.l.toLowerCase()}”.`;}
+  if(from==='m3'){const env=envScores();const top=Object.entries(env).sort((a,b)=>b[1]-a[1])[0][0];return `Je werkt het liefst dicht bij ${ENVLABEL[top].toLowerCase()}.`;}
+}
+function relay(){
+  const info={
+    m1:{n:1,k:"terra",ic:svg.compass,nm:"Interesses",next:"m2"},
+    m2:{n:2,k:"staal",ic:svg.scale,nm:"Werkwaarden",next:"m3"},
+    m3:{n:3,k:"salie",ic:svg.land,nm:"Werkomgeving",next:"m4"}
+  }[S.relayFrom];
+  let sats=""; for(let i=1;i<=4;i++){const done=i<=info.n;const m=MODS[i-1];
+    sats+=`<div style="text-align:center;opacity:${done?1:.4}"><div class="modbadge bg-${m.k}" style="width:44px;height:44px;margin:0 auto;${done?'':'filter:grayscale(.6)'}">${m.ic}</div></div>`;}
+  set(`<div class="center" style="padding-top:26px">
+      <div class="eyebrow" style="color:var(--muted)">signaal ${info.n} van 4 ontvangen</div>
+      <div class="modbadge bg-${info.k}" style="width:96px;height:96px;margin:22px auto 0">${info.ic}</div>
+      <h1 class="h-m" style="margin-top:20px">${info.nm} vergrendeld</h1>
+      <p class="sub" style="font-size:17px;font-family:'Cormorant Garamond',serif;font-style:italic;color:var(--ink);margin-top:10px">${mirror(S.relayFrom)}</p>
+      <div style="display:flex;gap:16px;justify-content:center;margin:28px 0">${sats}</div>
+      <div style="margin-top:8px"><button class="btn ink" onclick="go('${info.next}')">Volgende signaal →</button></div>
+    </div>`);
+}
+
+function m2(){
+  const chips=VALUES.map(v=>{const on=S.values.includes(v.id);const num=on?(S.values.indexOf(v.id)+1):"";
+    return `<button class="chip ${on?'on':''}" onclick="toggleVal('${v.id}')">${on?`<span class="num">${num}</span>`:''}${v.l}</button>`;}).join("");
+  const done=S.values.length===3;
+  set(`${progress(2)}
+    <div class="center"><div class="eyebrow" style="color:var(--staal-d)">werkwaarden</div>
+    <h1 class="h-m" style="margin-top:10px">Wat vind jij écht belangrijk in werk?</h1>
+    <p class="sub">Kies er drie die het meest bij je passen — in welke volgorde maakt niet uit.</p></div>
+    <div class="chips">${chips}</div>
+    <div style="margin-top:22px"><button class="btn staal" ${done?'':'disabled style="opacity:.45;cursor:default"'} onclick="${done?"finishM2()":''}">${done?'Signaal ontvangen — volgende':`Nog ${3-S.values.length} te kiezen`}</button></div>`);
+}
+window.toggleVal=(id)=>{const i=S.values.indexOf(id); if(i>=0)S.values.splice(i,1); else if(S.values.length<3)S.values.push(id); m2();};
+window.finishM2=()=>{S.relayFrom='m2';go('relay');};
+
+function m3(){
+  set(`${progress(3)}
+    <div class="center"><div class="eyebrow" style="color:var(--salie-d)">werkomgeving</div>
+    <h1 class="h-m" style="margin-top:10px">In welk landschap kom jij het best tot je recht?</h1>
+    <p class="sub">Schuif naar de kant die het meest bij je past. Er is geen goed of fout.</p></div>
+    <div class="card">
+      <div class="axis">
+        <div class="poles"><div class="pole l"><div class="t">Dingen</div><div class="d">maken, bouwen, met techniek werken</div></div>
+        <div class="pole r"><div class="t">Mensen</div><div class="d">begeleiden, samenwerken, verzorgen</div></div></div>
+        <input type="range" id="s1" min="0" max="100" value="${S.env.s1}" oninput="envUp()">
+        <div class="read" id="r1"></div>
+      </div>
+      <div class="axis">
+        <div class="poles"><div class="pole l"><div class="t">Data</div><div class="d">ordenen, berekenen, met systemen werken</div></div>
+        <div class="pole r"><div class="t">Ideeën</div><div class="d">bedenken, ontwerpen, onderzoeken</div></div></div>
+        <input type="range" id="s2" min="0" max="100" value="${S.env.s2}" oninput="envUp()">
+        <div class="read" id="r2"></div>
+      </div>
+    </div>
+    <div style="margin-top:18px"><button class="btn salie" onclick="finishM3()">Signaal ontvangen — volgende</button></div>`);
+  envUp();
+}
+window.finishM3=()=>{S.relayFrom='m3';go('relay');};
+function envLabel(v,min,max){if(v<28)return"Sterke neiging naar "+min;if(v<45)return"Neiging naar "+min;if(v<=55)return"Allebei ongeveer even veel";if(v<=72)return"Neiging naar "+max;return"Sterke neiging naar "+max;}
+window.envUp=()=>{const s1=document.getElementById('s1'),s2=document.getElementById('s2');S.env.s1=+s1.value;S.env.s2=+s2.value;
+  document.getElementById('r1').textContent=envLabel(S.env.s1,"Dingen","Mensen");
+  document.getElementById('r2').textContent=envLabel(S.env.s2,"Data","Ideeën");};
+
+function m4(){
+  const rows=COMP.map(c=>{let dots="";for(let i=1;i<=5;i++)dots+=`<button class="${S.comp[c.id]===i?'on':''}" onclick="rate('${c.id}',${i})">${i}</button>`;
+    return `<div class="lik"><div class="q">${c.n}</div><div class="dots">${dots}</div></div>`;}).join("");
+  const done=Object.keys(S.comp).length===COMP.length;
+  set(`${progress(4)}
+    <div class="center"><div class="eyebrow" style="color:var(--amber-d)">competenties</div>
+    <h1 class="h-m" style="margin-top:10px">Hoe sterk herken je dit in jezelf?</h1>
+    <p class="sub">1 = past niet bij me · 5 = past helemaal bij me</p></div>
+    <div class="card">${rows}</div>
+    <div style="margin-top:18px"><button class="btn ink" ${done?'':'disabled style="opacity:.45;cursor:default"'} onclick="${done?"finishM4()":''}">${done?'Bereken mijn route':'Beoordeel ze allemaal'}</button></div>`);
+}
+window.rate=(id,v)=>{S.comp[id]=v;m4();};
+window.finishM4=()=>{ S.focus=null; go('result'); };
+
+function deep(){
+  const opts=Object.entries(FOCUS).map(([k,f])=>
+    `<button class="choice" onclick="setFocus('${k}')">${f.keuze}</button>`).join("");
+  set(`<div class="prog"><div class="modbadge bg-salie">${svg.land}</div>
+      <div class="steps" style="flex:1"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></div>
+      <div class="lbl">kruising</div></div>
+    <div class="center"><div class="eyebrow" style="color:var(--salie-d)">even scherpstellen</div>
+      <h1 class="h-m" style="margin-top:10px">Je voelt je aangetrokken tot werken met mensen.<br>Waar gaat je hart het meest naar uit?</h1>
+      <p class="sub">Binnen het mensgerichte werk liggen heel verschillende routes. Kies wat het dichtst bij je komt.</p></div>
+    <div class="choices">${opts}</div>`);
+}
+window.setFocus=(k)=>{S.focus=k;go('result');};
+
+function result(){
+  const ranked=compute();const best=ranked[0].g;const second=ranked[1].g;
+  const social=SOCIALGROUPS.includes(best.id);
+  const top=riasecTop(3).map(c=>RIASEC[c]);
+  const topCodes=riasecTop(3);
+  const typeBeroepen=beroepenVoorTop(topCodes.slice(0,2),4);
+  const vlabels=S.values.map(id=>VALUES.find(v=>v.id===id).l);
+  const env=envScores();
+  const envTop=Object.entries(env).sort((a,b)=>b[1]-a[1]).slice(0,2).map(e=>ENVLABEL[e[0]]);
+  const compTop=Object.entries(S.comp).sort((a,b)=>b[1]-a[1]).slice(0,3).map(e=>COMP.find(c=>c.id===e[0]).n);
+  const f=S.focus?FOCUS[S.focus]:null;
+  const opl=(f?f.opl:best.opl).slice(0,4);const ber=(f?f.ber:best.ber).slice(0,4);
+  const naam=best.naam+(f?" — "+f.sub:"");
+  set(`<div class="center" style="padding-top:6px">
+      <div class="eyebrow" style="color:var(--salie-d)">✦ route berekend</div>
+      <h1 class="h-l" style="margin-top:12px">Je route wijst richting<br>${best.zin}.</h1>
+    </div>
+
+    <div class="card" style="margin-top:24px">
+      <div style="font-family:'DM Mono',monospace;font-size:11.5px;color:var(--muted);margin-bottom:12px">JOUW VIER SIGNALEN</div>
+      <div class="sigrow">
+        <div class="sig bg-terra"><div class="lab">INTERESSES</div><div class="val">${top.join(" · ")}</div></div>
+        <div class="sig bg-staal"><div class="lab">WAARDEN</div><div class="val">${vlabels[0]}</div></div>
+        <div class="sig bg-salie"><div class="lab">WERKOMGEVING</div><div class="val">${envTop.join(" & ")}</div></div>
+        <div class="sig bg-amber"><div class="lab">STERKSTE COMPETENTIES</div><div class="val">${compTop[0]}</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="font-family:'DM Mono',monospace;font-size:11.5px;color:var(--muted);margin-bottom:12px">WAT JOUW CODE BETEKENT</div>
+      ${topCodes.slice(0,2).map(c=>{const t=TYPEMETA[c];return `<div style="margin-bottom:14px">
+        <div style="font-family:'Cormorant Garamond',serif;font-size:21px"><b>${c}</b> · ${t.naam} <span style="color:var(--muted);font-style:italic;font-size:16px">— "${t.tagline}"</span></div>
+        <div class="sub" style="text-align:left;margin-top:4px">${t.uitleg}</div>
+        <div class="tags" style="margin-top:8px">${t.woorden.map(w=>`<span class="tag">${w}</span>`).join("")}</div>
+      </div>`;}).join("")}
+    </div>
+
+    <div class="card">
+      <h1 class="h-m">${naam}</h1>
+      <p class="sub" style="text-align:left;margin-top:8px">Beroepen die passen bij jouw sterkste interesses (${topCodes.slice(0,2).map(c=>TYPEMETA[c].naam).join(" en ")}):</p>
+      <div style="margin-top:12px">
+      ${typeBeroepen.map(b=>`<div style="padding:12px 0;border-top:1px solid var(--line)">
+        <div style="font-size:16px;font-weight:500">${b.beroep}</div>
+        <div style="font-family:'DM Mono',monospace;font-size:11.5px;color:var(--salie-d);margin-top:2px">${b.opleiding}</div>
+        <div class="sub" style="text-align:left;margin-top:4px">${b.omschrijving}</div>
+      </div>`).join("")}
+      </div>
+    </div>
+
+    <div class="card">
+      <details open>
+        <summary>Hoe komt deze route tot stand?</summary>
+        <div class="step">Je interesses (${top.slice(0,2).join(" en ")}) wijzen naar deze hoek — dat signaal weegt het zwaarst.</div>
+        <div class="step">Je waarde "${vlabels[0]}" bevestigt de richting.</div>
+        <div class="step">Je voorkeur voor ${envTop.join(" en ")} sluit hierop aan.</div>
+        ${f?`<div class="step">Bij de kruising koos je voor <b>${f.sub}</b> — dat maakte de route binnen dit brede veld scherper.</div>`:''}
+        <div class="step">Er past nog een tweede route bij je: <b>${second.naam}</b> — het verkennen waard.</div>
+      </details>
+    </div>
+
+    <div class="card reflect" style="background:rgba(193,94,60,.06);border-color:rgba(193,94,60,.2)">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:24px">Jij bent meer dan een code</div>
+      <div class="q">Herken je jezelf in deze richting?</div>
+      <div class="q">Wat mis je in dit beeld dat voor jou juist belangrijk is?</div>
+      <div class="q">Als je dit advies even wegdenkt — waar zou jíj naartoe willen?</div>
+    </div>
+
+    ${social?`<div class="card noprint" style="border:2px solid var(--salie);background:rgba(110,146,104,.08)">
+      <div class="eyebrow" style="color:var(--salie-d)">laatste stap · finetuning</div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:24px;margin-top:6px">Nog aan het twijfelen tussen concrete opleidingen?</div>
+      <p class="sub" style="text-align:left;margin-top:8px">Binnen deze richting lijken opleidingen als pabo, social work, pedagogiek en hrm op elkaar. Zet ze naast elkaar en zie wat het verschil écht is.</p>
+      <div style="margin-top:14px"><button class="btn salie" onclick="startTwijfel()">Vergelijk de opleidingen →</button></div>
+    </div>`:''}
+
+    <div id="routekaart" style="margin-top:20px;border-radius:20px;overflow:hidden;display:flex;
+        background:radial-gradient(140% 160% at 20% 10%, #33463f, #202a26 70%);color:#F1EBDF;
+        box-shadow:0 22px 46px -20px rgba(42,38,32,.5)">
+      <div style="padding:22px 18px;border-right:2px dashed rgba(241,235,223,.28);text-align:center;display:flex;flex-direction:column;justify-content:center;min-width:118px">
+        <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.12em;opacity:.7">CODE</div>
+        <div style="font-family:'Cormorant Garamond',serif;font-size:34px;line-height:1;margin-top:6px">${top.map(t=>t[0]).join("·")}</div>
+      </div>
+      <div style="padding:20px;flex:1">
+        <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.12em;opacity:.7">LOOPBAAN GPS · BESTEMMING</div>
+        <div style="font-family:'Cormorant Garamond',serif;font-size:23px;line-height:1.15;margin-top:6px">${naam}</div>
+        <div style="font-size:12.5px;opacity:.85;margin-top:8px;line-height:1.4">${best.zin}</div>
+        <div style="font-family:'DM Mono',monospace;font-size:10.5px;opacity:.6;margin-top:12px">${new Date().toLocaleDateString('nl-NL')} · een route om te verkennen</div>
+      </div>
+    </div>
+
+    <div style="margin-top:18px" class="noprint">
+      <button class="btn salie" onclick="saveCard()">Bewaar je routekaart als afbeelding</button>
+      <button class="ghost-link" onclick="window.print()">Of bewaar de hele route als PDF</button>
+      <button class="ghost-link" onclick="restart()">Opnieuw beginnen</button></div>`);
+}
+window.saveCard=async()=>{
+  const el=document.getElementById('routekaart');
+  try{ if(window.html2canvas){const c=await html2canvas(el,{scale:2,backgroundColor:null});
+    const a=document.createElement('a');a.download='mijn-loopbaanroute.png';a.href=c.toDataURL('image/png');a.click();return;} }
+  catch(e){}
+  window.print();
+};
+window.restart=()=>{S.screen="intro";S.m1i=0;S.m1hist=[];S.riasec={R:0,I:0,A:0,S:0,W:0,C:0};S.values=[];S.env={s1:50,s2:50};S.comp={};S.focus=null;S.relayFrom=null;S.tw={chosen:[],as1:null,dom:null};clearState();render();};
+
+/* ---- Twijfelhulp (finetuning) ---- */
+window.startTwijfel=()=>{ S.tw={chosen:["pabo","social","pedagogiek","hrm"],as1:null,dom:null}; go('twIntro'); };
+function twIntro(){
+  const chips=Object.entries(OPL).map(([k,o])=>`<button class="chip ${S.tw.chosen.includes(k)?'on':''}" onclick="twToggle('${k}')">${o.naam}</button>`).join("");
+  const ok=S.tw.chosen.length>=2;
+  set(`<div class="center" style="padding-top:6px">
+      <div class="eyebrow" style="color:var(--salie-d)">finetuning · twijfelhulp</div>
+      <h1 class="h-l" style="margin-top:12px">Tussen welke opleidingen<br>twijfel jij nog?</h1>
+      <p class="sub">Deze lijken op elkaar, maar verschillen echt. Kies er twee tot vier — we voorselecteerden er alvast een paar op basis van je route.</p></div>
+    <div class="chips">${chips}</div>
+    <div style="margin-top:24px"><button class="btn salie" ${ok?'':'disabled style="opacity:.45;cursor:default"'} onclick="${ok?"go('twQ1')":''}">${ok?'Laat het verschil zien':'Kies er minstens twee'}</button>
+      <button class="ghost-link" onclick="go('result')">← terug naar mijn route</button></div>`);
+}
+window.twToggle=(k)=>{const i=S.tw.chosen.indexOf(k);if(i>=0)S.tw.chosen.splice(i,1);else if(S.tw.chosen.length<4)S.tw.chosen.push(k);twIntro();};
+function twQ1(){
+  set(`<div class="center"><div class="eyebrow" style="color:var(--salie-d)">vraag 1 van 2</div>
+      <h1 class="h-m" style="margin-top:10px">Hoe werk je het liefst met mensen?</h1>
+      <p class="sub">Er is geen beter of slechter — beide zijn even waardevol.</p></div>
+    <div class="choices">
+      <button class="choice" onclick="twA1('direct')"><b>Dírect met mensen</b><div class="d">zelf begeleiden, verzorgen, lesgeven — dicht op de persoon</div></button>
+      <button class="choice" onclick="twA1('systeem')"><b>Aan het systeem eromheen</b><div class="d">adviseren, beleid maken, ontwerpen hoe het beter kan</div></button>
+    </div>
+    <button class="ghost-link" onclick="go('twIntro')">← terug</button>`);
+}
+window.twA1=(v)=>{S.tw.as1=v;go('twQ2');};
+function twQ2(){
+  const doms=[...new Set(S.tw.chosen.map(k=>OPL[k].dom))];
+  const opts=doms.map(d=>`<button class="choice" onclick="twSetDom('${d}')"><b>${DOMLABEL[d].charAt(0).toUpperCase()+DOMLABEL[d].slice(1)}</b></button>`).join("");
+  set(`<div class="center"><div class="eyebrow" style="color:var(--salie-d)">vraag 2 van 2</div>
+      <h1 class="h-m" style="margin-top:10px">Waar gaat je hart het meest naar uit?</h1>
+      <p class="sub">Kies wat het dichtst bij je komt.</p></div>
+    <div class="choices">${opts}</div>
+    <button class="ghost-link" onclick="go('twQ1')">← terug</button>`);
+}
+window.twSetDom=(d)=>{S.tw.dom=d;go('twResult');};
+function twScore(k){const o=OPL[k];return (o.as1===S.tw.as1?2:0)+(o.dom===S.tw.dom?2:0);}
+function twResult(){
+  const ranked=[...S.tw.chosen].sort((a,b)=>twScore(b)-twScore(a));
+  const bestScore=twScore(ranked[0]);const tie=ranked.filter(k=>twScore(k)===bestScore).length>1;
+  const cards=ranked.map(k=>{const o=OPL[k];const best=twScore(k)===bestScore&&!tie;
+    return `<div class="cmp ${best?'best':''}">
+      ${best?'<div class="rib">LIJKT HET DICHTST BIJ JE ANTWOORDEN</div>':''}
+      <h3>${o.naam}</h3><div class="kern">“${o.kern}”</div>
+      <div class="row"><div class="l">VOOR WIE</div><div class="v">${o.voorwie}</div></div>
+      <div class="row"><div class="l">SOORT WERK</div><div class="v">${o.werk}</div></div>
+      <div class="row"><div class="l">LEVENSDOMEIN</div><div class="v">${DOMLABEL[o.dom]}</div></div>
+      <div class="row"><div class="l">MISVERSTAND</div><div class="v">${o.mis}</div></div>
+    </div>`;}).join("");
+  const lead=tie
+    ? "Twee opleidingen liggen op basis van je antwoorden dicht bij elkaar — het verschil hieronder helpt je verder kiezen."
+    : `Op basis van je antwoorden lijkt <b>${OPL[ranked[0]].naam}</b> het dichtst bij je te liggen. Maar lees vooral zelf mee — dit is om mee te denken, niet om voor je te beslissen.`;
+  set(`<div class="center"><div class="eyebrow" style="color:var(--salie-d)">✦ het verschil op een rij</div>
+      <h1 class="h-m" style="margin-top:10px">Wat deze opleidingen<br>echt onderscheidt</h1></div>
+    <div class="card" style="margin-top:20px"><p style="font-size:15.5px;line-height:1.6">${lead}</p></div>
+    <div style="margin-top:14px">${cards}</div>
+    <div class="card" style="margin-top:14px;background:rgba(193,94,60,.06);border-color:rgba(193,94,60,.2)">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:22px">Nog een goede vraag om jezelf te stellen</div>
+      <p class="sub" style="text-align:left;margin-top:8px">Stel je een gewone werkdag voor over vijf jaar. Bij welke van deze opleidingen zie je jezelf het liefst bezig — en wat zegt dat?</p>
+    </div>
+    <div style="margin-top:18px"><button class="btn salie" onclick="go('twIntro')">Opnieuw vergelijken</button>
+      <button class="ghost-link" onclick="go('result')">← terug naar mijn route</button></div>`);
+}
+window.go=(scr)=>{S.screen=scr;render();};
+
+loadState(); // herstelt een onderbroken sessie (zelfde tabblad/apparaat) automatisch
+render();
+</script>
+</body>
+</html>
