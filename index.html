@@ -160,6 +160,25 @@
   }
   @keyframes cv-route-draw{to{stroke-dashoffset:0}}
 
+  .app-foot{margin-top:28px;padding-top:18px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:10px 18px;justify-content:center}
+  .foot-link{background:none;border:none;padding:0;font-family:"DM Mono",monospace;font-size:12px;color:var(--muted);cursor:pointer;text-decoration:underline}
+  .foot-link:focus-visible{outline:2px solid var(--staal);outline-offset:3px;border-radius:4px}
+  .cover-foot{margin-top:22px;display:flex;gap:16px;flex-wrap:wrap}
+  .cover-foot .foot-link{color:rgba(241,235,223,.75)}
+  .intro-note{font-size:13.5px;line-height:1.55;color:var(--muted);margin-top:12px}
+  .visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+  .wipe-backdrop{position:fixed;inset:0;background:rgba(30,53,82,.45);z-index:90}
+  .wipe-dialog{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:91;width:min(420px,calc(100% - 32px));
+    background:rgba(255,255,255,.95);border:1px solid var(--line);border-radius:20px;padding:24px 22px;box-shadow:0 24px 48px -16px rgba(42,38,32,.45)}
+  .wipe-dialog h2{font-family:"Cormorant Garamond",serif;font-size:26px;font-weight:500}
+  .wipe-dialog p{margin-top:12px;font-size:15px;line-height:1.55;color:var(--ink)}
+  .wipe-actions{display:flex;flex-direction:column;gap:10px;margin-top:20px}
+  .wipe-actions .btn.ghost{color:var(--ink)}
+  .over-block{margin-top:18px}
+  .over-block h2{font-family:"Cormorant Garamond",serif;font-size:22px;margin-bottom:8px}
+  .over-block p,.over-block li{font-size:15px;line-height:1.55;color:var(--ink)}
+  .over-block ul{margin:8px 0 0 1.1em}
+
   @media (max-width:520px){.chips{grid-template-columns:1fr}.h-xl{font-size:42px}.h-l{font-size:34px}}
   @media (prefers-reduced-motion:reduce){*{animation:none!important}}
   @media print{body{background:#fff;padding:0}.card{box-shadow:none;border:1px solid #ddd}.noprint{display:none!important}.verder-kijken{display:none!important}.cover{display:none!important}}
@@ -168,6 +187,16 @@
 </head>
 <body>
 <div id="app"></div>
+<div id="wipe-backdrop" class="wipe-backdrop noprint" hidden></div>
+<div id="wipe-dialog" class="wipe-dialog noprint" role="dialog" aria-modal="true" aria-labelledby="wipe-title" hidden>
+  <h2 id="wipe-title">Gegevens wissen?</h2>
+  <p>Weet je het zeker? Je antwoorden en notities op dit apparaat worden verwijderd.</p>
+  <div class="wipe-actions">
+    <button type="button" class="btn ink" onclick="confirmWipe()">Ja, wis alles</button>
+    <button type="button" class="btn ghost" onclick="closeWipeDialog()">Annuleren</button>
+  </div>
+</div>
+<div id="status-announcer" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
 
 <script>
 /* ---------------- DATA ---------------- */
@@ -314,57 +343,114 @@ const BEROEPEN=[
 function beroepenVoorTop(topCodes,max){const set=new Set(topCodes);const m=BEROEPEN.filter(b=>set.has(b.code));return m.slice(0,max||4);}
 
 /* ---------------- STATE ---------------- */
-const STORAGE_KEY = "loopbaan-gps-state-v1";
-const S = { screen:"cover", m1i:0, m1hist:[], riasec:{R:0,I:0,A:0,S:0,W:0,C:0}, values:[], env:{s1:50,s2:50}, comp:{}, focus:null, relayFrom:null, tw:{chosen:[],as1:null,dom:null} };
+const STORAGE_KEY = "loopbaangps:v1";
+const LEGACY_SESSION_KEY = "loopbaan-gps-state-v1";
+const STORAGE_MAX_DAYS = 90;
+const PRIVACY_TEXT = "Je antwoorden blijven op dit apparaat. We sturen niets naar een server, gebruiken geen cookies en volgen je niet. Werk je op een computer van school of van iemand anders? Klik dan aan het eind op 'Wis mijn gegevens'.";
+function defaultState(){
+  return {screen:"cover",returnTo:"intro",m1i:0,m1hist:[],riasec:{R:0,I:0,A:0,S:0,W:0,C:0},values:[],env:{s1:50,s2:50},comp:{},focus:null,relayFrom:null,tw:{chosen:[],as1:null,dom:null}};
+}
+const S = defaultState();
 const app = document.getElementById("app");
 /* sync met omslag-art.svg */
 const COVER_ART=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 800" preserveAspectRatio="xMidYMid slice" role="img" aria-labelledby="cv-title">
-  <title id="cv-title">Illustratie van een route door landschappen naar een bestemming</title>
-  <defs>
-    <linearGradient id="cv-sky" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#1E3552"/>
-      <stop offset="100%" stop-color="#2A4A6E"/>
-    </linearGradient>
-    <filter id="cv-glow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="12" result="b"/>
-      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-  </defs>
-  <rect width="600" height="800" fill="url(#cv-sky)"/>
-  <path id="cv-band-blue" fill="#3F6EA8" d="M0,280 C120,250 200,310 320,290 S520,240 600,270 L600,380 C480,400 360,350 240,370 S80,420 0,390 Z"/>
-  <path id="cv-band-salie" fill="#6E9268" d="M0,390 C140,360 260,420 400,400 S560,360 600,400 L600,510 C460,530 300,480 160,500 S40,540 0,520 Z"/>
-  <path id="cv-band-terra" fill="#C15E3C" d="M0,520 C100,490 220,550 340,530 S500,490 600,520 L600,620 C480,640 320,590 180,610 S60,650 0,630 Z"/>
-  <path id="cv-band-amber" fill="#CE8A25" d="M0,630 C130,600 250,660 380,640 S540,600 600,630 L600,720 C470,740 300,700 150,720 S50,750 0,730 Z"/>
-  <path id="cv-band-cream" fill="#EFE9DF" d="M0,730 C120,710 240,760 360,740 S520,710 600,730 L600,800 L0,800 Z"/>
-  <path id="cv-route" fill="none" stroke="#F1EBDF" stroke-width="3" stroke-dasharray="6 10" stroke-linecap="round" d="M80,760 C120,700 100,640 160,580 C220,520 200,460 280,420 C360,380 340,320 400,260 C440,220 460,180 300,120"/>
-  <circle id="cv-dot-1" cx="130" cy="700" r="9" fill="#1E3552"/>
-  <circle id="cv-dot-2" cx="175" cy="565" r="9" fill="#6E9268"/>
-  <circle id="cv-dot-3" cx="295" cy="435" r="9" fill="#C15E3C"/>
-  <circle id="cv-dot-4" cx="385" cy="295" r="9" fill="#CE8A25"/>
-  <g id="cv-pin" filter="url(#cv-glow)">
-    <path fill="#C15E3C" d="M300,95c-22,0-40,18-40,40 0,30 40,72 40,72s40-42 40-72c0-22-18-40-40-40z"/>
-    <circle cx="300" cy="135" r="14" fill="#F1EBDF"/>
-  </g>
+<title id="cv-title">Een stippellijnroute over golvend landschap naar een locatiepin</title>
+<defs>
+<filter id="cv-brush" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.018 0.045" numOctaves="2" seed="7"/><feDisplacementMap in="SourceGraphic" scale="14"/></filter>
+<radialGradient id="cv-glow" gradientUnits="userSpaceOnUse" cx="440" cy="190" r="380"><stop offset="0" stop-color="#E7B45A" stop-opacity=".42"/><stop offset=".35" stop-color="#E7B45A" stop-opacity=".18"/><stop offset=".7" stop-color="#E7B45A" stop-opacity=".05"/><stop offset="1" stop-color="#E7B45A" stop-opacity="0"/></radialGradient>
+</defs>
+<rect width="600" height="800" fill="#1E3552"/>
+<rect width="600" height="800" fill="url(#cv-glow)"/>
+<g filter="url(#cv-brush)">
+<path d="M-20 360 C90 320 170 390 280 350 S470 300 620 340 V820 H-20Z" fill="#3E5F82" opacity=".9"/>
+<path d="M-20 450 C110 410 200 480 320 440 S500 400 620 430 V820 H-20Z" fill="#7F9A86"/>
+<path d="M-20 540 C80 510 210 575 330 535 S520 500 620 525 V820 H-20Z" fill="#C2704C"/>
+<path d="M-20 630 C120 600 230 660 350 625 S530 600 620 615 V820 H-20Z" fill="#E7B45A"/>
+<path d="M-20 715 C100 690 250 740 380 705 S540 690 620 700 V820 H-20Z" fill="#F4ECDD"/>
+</g>
+<path id="cv-route" d="M128 712 C170 700 120 640 210 600 S360 560 330 500 S250 430 340 390 S470 330 450 250" fill="none" stroke="#F4ECDD" stroke-width="4" stroke-linecap="round" stroke-dasharray="2 12"/>
+<g stroke="#F4ECDD" stroke-width="3">
+<circle cx="150" cy="680" r="11" fill="#3E5F82"/>
+<circle cx="268" cy="577" r="11" fill="#7F9A86"/>
+<circle cx="300" cy="460" r="11" fill="#C2704C"/>
+<circle cx="405" cy="350" r="11" fill="#E7B45A"/>
+</g>
+<g transform="translate(450 250)">
+<ellipse cx="0" cy="4" rx="16" ry="5" fill="#000" opacity=".25"/>
+<path d="M0 0 C-6 -14 -22 -26 -22 -44 A22 22 0 0 1 22 -44 C22 -26 6 -14 0 0Z" fill="#C2704C" stroke="#F4ECDD" stroke-width="3"/>
+<circle cx="0" cy="-44" r="8" fill="#F4ECDD"/>
+</g>
 </svg>`;
 
-/* ---------------- PERSISTENTIE (sessionStorage) ----------------
-   Bewaart alleen binnen dit tabblad/apparaat, nooit verstuurd. Voorkomt dat
-   een per-ongeluk-refresh midden in de test alle voortgang wist. */
+/* ---------------- PERSISTENTIE (localStorage, alleen dit apparaat) ---------------- */
+function snapshotState(){
+  return {screen:S.screen,returnTo:S.returnTo,m1i:S.m1i,m1hist:S.m1hist,riasec:S.riasec,values:S.values,env:S.env,comp:S.comp,focus:S.focus,relayFrom:S.relayFrom,tw:S.tw};
+}
+function applyState(st){
+  Object.assign(S,st);
+  if(!S.tw) S.tw={chosen:[],as1:null,dom:null};
+  if(!S.returnTo) S.returnTo="intro";
+}
+function resetStateFields(){applyState(defaultState());}
 function saveState(){
-  try{ sessionStorage.setItem(STORAGE_KEY, JSON.stringify(S)); }catch(e){ /* privé-venster o.i.d. — negeren */ }
+  try{
+    const payload={version:1,savedAt:new Date().toISOString(),state:snapshotState()};
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(payload));
+  }catch(e){}
 }
 function loadState(){
   try{
-    const raw = sessionStorage.getItem(STORAGE_KEY);
-    if(!raw) return false;
-    const parsed = JSON.parse(raw);
-    Object.assign(S, parsed);
-    return true;
-  }catch(e){ return false; }
+    const raw=localStorage.getItem(STORAGE_KEY);
+    if(raw){
+      const bag=JSON.parse(raw);
+      if(bag.savedAt){
+        const age=Date.now()-new Date(bag.savedAt).getTime();
+        if(age>STORAGE_MAX_DAYS*86400000){clearState();return false;}
+      }
+      if(bag.state){applyState(bag.state);return true;}
+    }
+    const legacy=sessionStorage.getItem(LEGACY_SESSION_KEY);
+    if(legacy){
+      applyState(JSON.parse(legacy));
+      sessionStorage.removeItem(LEGACY_SESSION_KEY);
+      saveState();
+      return true;
+    }
+  }catch(e){}
+  return false;
 }
 function clearState(){
-  try{ sessionStorage.removeItem(STORAGE_KEY); }catch(e){}
+  try{localStorage.removeItem(STORAGE_KEY);sessionStorage.removeItem(LEGACY_SESSION_KEY);}catch(e){}
 }
+function appFooterHtml(){
+  return `<footer class="app-foot noprint" role="contentinfo">
+    <button type="button" class="foot-link" onclick="goOver()">Over deze app</button>
+    <button type="button" class="foot-link" onclick="openWipeDialog()">Wis mijn gegevens</button>
+  </footer>`;
+}
+function announceStatus(msg){
+  const el=document.getElementById("status-announcer");
+  if(el){el.textContent="";el.textContent=msg;}
+}
+window.openWipeDialog=()=>{
+  document.getElementById("wipe-backdrop").hidden=false;
+  document.getElementById("wipe-dialog").hidden=false;
+  document.getElementById("wipe-dialog").querySelector(".btn.ink").focus();
+};
+window.closeWipeDialog=()=>{
+  document.getElementById("wipe-backdrop").hidden=true;
+  document.getElementById("wipe-dialog").hidden=true;
+};
+window.confirmWipe=()=>{
+  closeWipeDialog();
+  clearState();
+  resetStateFields();
+  S.screen="cover";
+  announceStatus("Je gegevens zijn gewist.");
+  render();
+};
+window.goOver=()=>{S.returnTo=S.screen;go("over");};
+window.backFromOver=()=>{S.screen=S.returnTo||"intro";render();};
 
 /* ---------------- HELPERS ---------------- */
 const svg = {
@@ -417,6 +503,7 @@ function render(){
   document.body.classList.toggle("is-cover",onCover);
   app.classList.toggle("is-cover",onCover);
   if(S.screen==="cover") return cover();
+  if(S.screen==="over") return over();
   if(S.screen==="intro") return intro();
   if(S.screen==="m1") return m1();
   if(S.screen==="m2") return m2();
@@ -430,7 +517,12 @@ function render(){
   if(S.screen==="twQ2") return twQ2();
   if(S.screen==="twResult") return twResult();
 }
-function set(html){app.innerHTML=html;window.scrollTo(0,0);saveState();}
+function set(html,opts={}){
+  const footer=opts.noFooter? "": appFooterHtml();
+  app.innerHTML=html+footer;
+  window.scrollTo(0,0);
+  saveState();
+}
 function focusHeading(id){
   requestAnimationFrame(()=>{const el=document.getElementById(id);if(el){el.tabIndex=-1;el.focus();}});
 }
@@ -452,9 +544,43 @@ function cover(){
         </ul>
         <button type="button" class="btn ink" onclick="startFromCover()">Start je route</button>
         <p class="cover-meta">± 15 minuten · je antwoorden blijven op dit apparaat</p>
+        <div class="cover-foot noprint">
+          <button type="button" class="foot-link" onclick="goOver()">Over deze app</button>
+          <button type="button" class="foot-link" onclick="openWipeDialog()">Wis mijn gegevens</button>
+        </div>
       </div>
     </div>
-  </section>`);
+  </section>`,{noFooter:true});
+}
+function over(){
+  set(`<div class="center" style="padding-top:6px">
+      <div class="eyebrow" style="color:var(--staal-d)">over deze app</div>
+      <h1 id="over-heading" class="h-l" style="margin-top:10px">Loopbaan GPS</h1>
+    </div>
+    <div class="card" style="margin-top:20px;text-align:left">
+      <div class="over-block">
+        <h2>Waarvoor</h2>
+        <p>Een hulpmiddel voor zelfreflectie en om je voor te bereiden op een gesprek met je mentor, decaan of ouders over studie en werk.</p>
+      </div>
+      <div class="over-block">
+        <h2>Hoe het advies werkt</h2>
+        <p>Je interesses worden vergeleken met het RIASEC-model van Holland (1997), samen met je werkwaarden, werkomgeving en competenties. De uitkomst laat zien wat jij relatief belangrijker vindt — geen score ten opzichte van anderen.</p>
+      </div>
+      <div class="over-block">
+        <h2>Privacy</h2>
+        <p>${PRIVACY_TEXT} Gegevens worden na 90 dagen automatisch gewist.</p>
+      </div>
+      <div class="over-block">
+        <h2>Colofon</h2>
+        <p>Ontwikkeld door Moreel Vakmanschap · versie 1.0</p>
+      </div>
+      <div class="over-block">
+        <h2>Bron</h2>
+        <p>Holland, J. L. (1997). <em>Making vocational choices: A theory of vocational personalities and work environments</em> (3rd ed.). Psychological Assessment Resources.</p>
+      </div>
+    </div>
+    <div style="margin-top:18px"><button type="button" class="btn ink" onclick="backFromOver()">Terug</button></div>`);
+  focusHeading("over-heading");
 }
 window.startFromCover=()=>{S.screen="intro";render();focusHeading("intro-heading");};
 
@@ -490,9 +616,12 @@ function intro(){
     <p class="sub" style="font-size:17px;margin-top:6px">Bereken jouw route</p>
     <div class="card" style="margin-top:24px;text-align:left">
       <p style="font-size:15.5px;line-height:1.6;color:var(--ink)">Vier korte signalen — je interesses, je waarden, je werkomgeving en je competenties — samen wijzen ze een richting aan. Geen test met een uitslag, maar een spiegel om te verkennen.</p>
-      <p class="sub" style="margin-top:14px;text-align:left">4 stappen · ongeveer 5 minuten · je gegevens blijven op dit apparaat.</p>
+      <p class="sub" style="margin-top:14px;text-align:left">4 stappen · ongeveer 5 minuten.</p>
+      <p class="intro-note">${PRIVACY_TEXT}</p>
+      <p class="intro-note">Loopbaan GPS helpt je nadenken over wat bij je past en je voorbereiden op een gesprek. Het is geen psychologische test en het zegt niet wat je moet kiezen. Jij beslist.</p>
     </div>
     <div style="margin-top:22px"><button class="btn ink" onclick="go('m1')">Start de route</button></div>
+    <button type="button" class="ghost-link noprint" onclick="openWipeDialog()">Wis mijn gegevens</button>
   </div>`);
 }
 
@@ -731,7 +860,8 @@ function result(){
       <button class="ghost-link" onclick="window.print()">Of bewaar de hele route als PDF</button>
     </div>
     ${verderKijken}
-    <button class="ghost-link noprint" onclick="restart()">Opnieuw beginnen</button>`);
+    <button type="button" class="ghost-link noprint" onclick="openWipeDialog()">Wis mijn gegevens</button>
+    <button type="button" class="ghost-link noprint" onclick="restart()">Opnieuw beginnen</button>`);
 }
 window.saveCard=async()=>{
   const el=document.getElementById('routekaart');
@@ -740,7 +870,7 @@ window.saveCard=async()=>{
   catch(e){}
   window.print();
 };
-window.restart=()=>{S.screen="intro";S.m1i=0;S.m1hist=[];S.riasec={R:0,I:0,A:0,S:0,W:0,C:0};S.values=[];S.env={s1:50,s2:50};S.comp={};S.focus=null;S.relayFrom=null;S.tw={chosen:[],as1:null,dom:null};clearState();render();};
+window.restart=()=>{resetStateFields();S.screen="intro";saveState();render();focusHeading("intro-heading");};
 
 /* ---- Twijfelhulp (finetuning) ---- */
 window.startTwijfel=()=>{ S.tw={chosen:["pabo","social","pedagogiek","hrm"],as1:null,dom:null}; go('twIntro'); };
