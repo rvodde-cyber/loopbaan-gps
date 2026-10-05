@@ -3,7 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Loopbaan GPS — prototype</title>
+<title>Loopbaan GPS — vind jouw route</title>
+<meta name="description" content="Ontdek in vier korte stappen welke opleidingen en beroepen bij je passen en bereid je voor op het gesprek met je mentor of decaan. Je antwoorden blijven op je eigen apparaat.">
+<meta name="theme-color" content="#1E3552">
+<meta property="og:title" content="Loopbaan GPS — vind jouw route">
+<meta property="og:description" content="Ontdek in vier korte stappen welke opleidingen en beroepen bij je passen en bereid je voor op het gesprek met je mentor of decaan. Je antwoorden blijven op je eigen apparaat.">
+<meta property="og:url" content="https://loopbaangps.moreelvakmanschap.nl/">
+<meta property="og:locale" content="nl_NL">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png" sizes="180x180">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=DM+Sans:opsz,wght@9..40,400;9..40,500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -13,7 +21,7 @@
     --staal:#3F6EA8; --staal-d:#274d7d; --staal-l:#6E97CC;
     --salie:#6E9268; --salie-d:#4c6b47; --salie-l:#93B58C;
     --amber:#CE8A25; --amber-d:#96610f; --amber-l:#E7AE52;
-    --ink:#2A2620; --muted:#7C766B; --line:rgba(42,38,32,.10);
+    --ink:#2A2620; --muted:#5F5A52; --line:rgba(42,38,32,.10);
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:"DM Sans",system-ui,sans-serif;color:var(--ink);
@@ -38,7 +46,7 @@
   .btn:active{transform:scale(.985)}
   .btn.ink{background:radial-gradient(120% 140% at 40% 20%, #4a443b, var(--ink) 70%)}
   .btn.salie{background:radial-gradient(120% 140% at 40% 20%, var(--salie-l), var(--salie) 60%, var(--salie-d))}
-  .btn.ghost{background:rgba(42,38,32,.05);color:var(--muted);border:1px solid var(--line);box-shadow:inset 0 1px 0 rgba(255,255,255,.7)}
+  .btn.ghost{background:rgba(42,38,32,.05);color:var(--ink);border:1px solid var(--line);box-shadow:inset 0 1px 0 rgba(255,255,255,.7)}
   .ghost-link{display:block;text-align:center;margin-top:14px;color:var(--muted);font-size:13.5px;background:none;border:none;cursor:pointer;width:100%}
 
   /* progress satellites */
@@ -164,7 +172,7 @@
   .foot-link{background:none;border:none;padding:0;font-family:"DM Mono",monospace;font-size:12px;color:var(--muted);cursor:pointer;text-decoration:underline}
   .foot-link:focus-visible{outline:2px solid var(--staal);outline-offset:3px;border-radius:4px}
   .cover-foot{margin-top:22px;display:flex;gap:16px;flex-wrap:wrap}
-  .cover-foot .foot-link{color:rgba(241,235,223,.75)}
+  .cover-foot .foot-link{color:#F4ECDD}
   .intro-note{font-size:13.5px;line-height:1.55;color:var(--muted);margin-top:12px}
   .visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
   .wipe-backdrop{position:fixed;inset:0;background:rgba(30,53,82,.45);z-index:90}
@@ -179,11 +187,13 @@
   .over-block p,.over-block li{font-size:15px;line-height:1.55;color:var(--ink)}
   .over-block ul{margin:8px 0 0 1.1em}
 
+  button:focus-visible,a:focus-visible,input:focus-visible,summary:focus-visible,.choice:focus-visible,.chip:focus-visible,.foot-link:focus-visible{outline:2px solid var(--staal);outline-offset:3px}
+
   @media (max-width:520px){.chips{grid-template-columns:1fr}.h-xl{font-size:42px}.h-l{font-size:34px}}
   @media (prefers-reduced-motion:reduce){*{animation:none!important}}
   @media print{body{background:#fff;padding:0}.card{box-shadow:none;border:1px solid #ddd}.noprint{display:none!important}.verder-kijken{display:none!important}.cover{display:none!important}}
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="vendor/html2canvas.min.js"></script>
 </head>
 <body>
 <div id="app"></div>
@@ -196,6 +206,7 @@
     <button type="button" class="btn ghost" onclick="closeWipeDialog()">Annuleren</button>
   </div>
 </div>
+<div id="screen-announcer" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
 <div id="status-announcer" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
 
 <script>
@@ -452,6 +463,71 @@ window.confirmWipe=()=>{
 window.goOver=()=>{S.returnTo=S.screen;go("over");};
 window.backFromOver=()=>{S.screen=S.returnTo||"intro";render();};
 
+let historyReady=false;
+let historySuppress=false;
+let renderOpts={};
+function historyPayload(){return snapshotState();}
+function screenAnnounceText(){
+  const s=S.screen;
+  if(s==="cover") return "Omslag";
+  if(s==="over") return "Over deze app";
+  if(s==="intro") return "Introductie";
+  if(s==="m1") return `Interesses, stap ${S.m1i+1} van ${M1.length}`;
+  if(s==="m2") return `Werkwaarden, ${S.values.length} van 3 gekozen`;
+  if(s==="m3") return "Werkomgeving";
+  if(s==="m4") return `Competenties, ${Object.keys(S.comp).length} van ${COMP.length} beoordeeld`;
+  if(s==="relay") return "Signaal ontvangen";
+  if(s==="deep") return "Kruising";
+  if(s==="result") return "Jouw route";
+  if(s==="twIntro") return "Twijfelhulp, opleidingen kiezen";
+  if(s==="twQ1") return "Twijfelhulp, vraag 1 van 2";
+  if(s==="twQ2") return "Twijfelhulp, vraag 2 van 2";
+  if(s==="twResult") return "Twijfelhulp, resultaat";
+  return "Loopbaan GPS";
+}
+function announceScreen(){
+  const el=document.getElementById("screen-announcer");
+  if(!el) return;
+  const msg=screenAnnounceText();
+  el.textContent="";
+  el.textContent=msg;
+}
+function autoFocusHeading(){
+  const h=app.querySelector("h1");
+  if(!h) return;
+  if(!h.id) h.id="screen-heading";
+  h.tabIndex=-1;
+  h.focus({preventScroll:false});
+}
+function afterScreenPaint(opts={}){
+  announceScreen();
+  if(!opts.skipFocus) autoFocusHeading();
+  if(opts.skipHistory || historySuppress) return;
+  const data=historyPayload();
+  try{
+    if(!historyReady){history.replaceState(data,"",location.href);historyReady=true;}
+    else history.pushState(data,"",location.href);
+  }catch(e){}
+}
+function onPopState(e){
+  const p=e.state;
+  if(!p) return;
+  if(S.screen==="m1" && p.screen==="m1" && typeof p.m1i==="number" && p.m1i<S.m1i){
+    historySuppress=true;
+    m1backStep();
+    m1();
+    saveState();
+    afterScreenPaint({skipHistory:true});
+    historySuppress=false;
+    return;
+  }
+  historySuppress=true;
+  applyState(p);
+  render({skipHistory:true});
+  historySuppress=false;
+}
+window.addEventListener("popstate",onPopState);
+
 /* ---------------- HELPERS ---------------- */
 const svg = {
   compass:'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7"><circle cx="12" cy="12" r="8"/><path d="M12 12l3.5-5.5-5.5 3.5z" fill="#fff" stroke="none"/></svg>',
@@ -498,7 +574,8 @@ function needsDeepening(){
 }
 
 /* ---------------- SCREENS ---------------- */
-function render(){
+function render(opts={}){
+  renderOpts=opts;
   const onCover=S.screen==="cover";
   document.body.classList.toggle("is-cover",onCover);
   app.classList.toggle("is-cover",onCover);
@@ -518,10 +595,12 @@ function render(){
   if(S.screen==="twResult") return twResult();
 }
 function set(html,opts={}){
-  const footer=opts.noFooter? "": appFooterHtml();
+  const o={...renderOpts,...opts};
+  const footer=o.noFooter? "": appFooterHtml();
   app.innerHTML=html+footer;
   window.scrollTo(0,0);
   saveState();
+  afterScreenPaint(o);
 }
 function focusHeading(id){
   requestAnimationFrame(()=>{const el=document.getElementById(id);if(el){el.tabIndex=-1;el.focus();}});
@@ -550,7 +629,7 @@ function cover(){
         </div>
       </div>
     </div>
-  </section>`,{noFooter:true});
+  </section>`,{noFooter:true,skipFocus:true});
 }
 function over(){
   set(`<div class="center" style="padding-top:6px">
@@ -579,10 +658,10 @@ function over(){
         <p>Holland, J. L. (1997). <em>Making vocational choices: A theory of vocational personalities and work environments</em> (3rd ed.). Psychological Assessment Resources.</p>
       </div>
     </div>
-    <div style="margin-top:18px"><button type="button" class="btn ink" onclick="backFromOver()">Terug</button></div>`);
+    <div style="margin-top:18px"><button type="button" class="btn ink" onclick="backFromOver()">Terug</button></div>`,{skipFocus:true});
   focusHeading("over-heading");
 }
-window.startFromCover=()=>{S.screen="intro";render();focusHeading("intro-heading");};
+window.startFromCover=()=>{S.screen="intro";render();};
 
 function heroSVG(){
   return `<svg viewBox="0 0 360 240" width="100%" style="max-width:380px;display:block;margin:0 auto" xmlns="http://www.w3.org/2000/svg">
@@ -629,24 +708,24 @@ function m1(){
   const q=M1[S.m1i];
   set(`${progress(1)}
     <div class="center"><div class="eyebrow" style="color:var(--terra-d)">interesses · vraag ${S.m1i+1} van ${M1.length}</div>
-    <h1 class="h-m" style="margin-top:10px">Wat spreekt je meer aan?</h1></div>
-    <div class="choices">
-      <button class="choice" onclick="pick('${q.a.c}')">${q.a.t}</button>
-      <button class="choice" onclick="pick('${q.b.c}')">${q.b.t}</button>
+    <h1 id="screen-heading" class="h-m" style="margin-top:10px">Wat spreekt je meer aan?</h1></div>
+    <div class="choices" role="radiogroup" aria-labelledby="screen-heading">
+      <button type="button" class="choice" onclick="pick('${q.a.c}')">${q.a.t}</button>
+      <button type="button" class="choice" onclick="pick('${q.b.c}')">${q.b.t}</button>
     </div>
-    ${S.m1i>0?'<button class="ghost-link noprint" onclick="m1back()">← vorige</button>':''}`);
+    ${S.m1i>0?'<button type="button" class="ghost-link noprint" onclick="m1back()">← vorige</button>':''}`);
+}
+function m1backStep(){
+  if(S.m1i>0){
+    const prevIdx=S.m1i-1;
+    const prev=S.m1hist[prevIdx];
+    if(prev && S.riasec[prev]>0) S.riasec[prev]--;
+    S.m1hist.length=prevIdx;
+    S.m1i=prevIdx;
+  }
 }
 window.pick=(c)=>{ S.riasec[c]++; S.m1hist[S.m1i]=c; if(S.m1i<M1.length-1){S.m1i++; m1();} else {S.relayFrom='m1'; go('relay');} };
-window.m1back=()=>{
-  if(S.m1i>0){
-    const prevIdx = S.m1i-1;
-    const prev = S.m1hist[prevIdx];
-    if(prev && S.riasec[prev]>0) S.riasec[prev]--; // score van het laatste antwoord echt terugdraaien
-    S.m1hist.length = prevIdx; // dat antwoord telt niet meer mee tot opnieuw gekozen
-    S.m1i = prevIdx;
-    m1();
-  }
-};
+window.m1back=()=>{ if(S.m1i>0) history.back(); };
 
 function mirror(from){
   if(from==='m1'){const t=riasecTop(1)[0];return {
@@ -679,7 +758,7 @@ function relay(){
 
 function m2(){
   const chips=VALUES.map(v=>{const on=S.values.includes(v.id);const num=on?(S.values.indexOf(v.id)+1):"";
-    return `<button class="chip ${on?'on':''}" onclick="toggleVal('${v.id}')">${on?`<span class="num">${num}</span>`:''}${v.l}</button>`;}).join("");
+    return `<button type="button" class="chip ${on?'on':''}" aria-pressed="${on}" onclick="toggleVal('${v.id}')">${on?`<span class="num">${num}</span>`:''}${v.l}</button>`;}).join("");
   const done=S.values.length===3;
   set(`${progress(2)}
     <div class="center"><div class="eyebrow" style="color:var(--staal-d)">werkwaarden</div>
@@ -720,7 +799,7 @@ window.envUp=()=>{const s1=document.getElementById('s1'),s2=document.getElementB
   document.getElementById('r2').textContent=envLabel(S.env.s2,"Data","Ideeën");};
 
 function m4(){
-  const rows=COMP.map(c=>{let dots="";for(let i=1;i<=5;i++)dots+=`<button class="${S.comp[c.id]===i?'on':''}" onclick="rate('${c.id}',${i})">${i}</button>`;
+  const rows=COMP.map(c=>{let dots="";for(let i=1;i<=5;i++){const on=S.comp[c.id]===i;dots+=`<button type="button" class="${on?'on':''}" aria-pressed="${on}" aria-label="${c.n}: ${i}" onclick="rate('${c.id}',${i})">${i}</button>`;}
     return `<div class="lik"><div class="q">${c.n}</div><div class="dots">${dots}</div></div>`;}).join("");
   const done=Object.keys(S.comp).length===COMP.length;
   set(`${progress(4)}
