@@ -187,6 +187,35 @@
   .over-block p,.over-block li{font-size:15px;line-height:1.55;color:var(--ink)}
   .over-block ul{margin:8px 0 0 1.1em}
 
+  .gesprekskaart{margin-top:20px;padding:0;overflow:hidden}
+  .gespreks-band{display:flex;height:7px}
+  .gespreks-band span{flex:1}
+  .gespreks-band .terra{background:var(--terra)}
+  .gespreks-band .staal{background:var(--staal)}
+  .gespreks-band .salie{background:var(--salie)}
+  .gespreks-band .amber{background:var(--amber)}
+  .gesprekskaart-inner{padding:26px 24px}
+  .gesprekskaart h2{font-family:"Cormorant Garamond",serif;font-size:26px;font-weight:500}
+  .gesprekskaart .gk-intro{margin-top:8px;font-size:15.5px;line-height:1.55}
+  .gesprekskaart .gk-block{margin-top:18px;font-size:15px;line-height:1.55}
+  .gesprekskaart .gk-block strong{display:block;font-size:13px;font-family:"DM Mono",monospace;letter-spacing:.02em;color:var(--muted);margin-bottom:6px;font-weight:500}
+  .gesprekskaart ol{margin:10px 0 0 1.2em;padding:0}
+  .gesprekskaart ol li{margin-top:8px;line-height:1.45}
+  .gespreks-field{margin-top:16px}
+  .gespreks-field label{display:block;font-size:15px;font-weight:500;margin-bottom:8px}
+  .gespreks-field textarea{width:100%;min-height:96px;padding:14px 16px;border-radius:14px;border:1px solid var(--line);
+    font-family:"DM Sans",sans-serif;font-size:15px;line-height:1.5;resize:vertical;background:rgba(255,255,255,.85)}
+  .gespreks-field textarea:focus-visible{outline:2px solid var(--staal);outline-offset:2px}
+  .gespreks-count{font-family:"DM Mono",monospace;font-size:11px;color:var(--muted);margin-top:6px;text-align:right}
+  .gespreks-print{display:none;font-size:15px;line-height:1.55;white-space:pre-wrap;padding:8px 0 12px}
+  .gespreks-print.empty{min-height:2.8em;border-bottom:1px dashed var(--muted)}
+  @media print{
+    .gesprekskaart textarea{display:none!important}
+    .gespreks-count{display:none!important}
+    .gespreks-print{display:block!important}
+    .gespreks-print.empty{border-bottom:1px dashed rgba(42,38,32,.35)}
+  }
+
   button:focus-visible,a:focus-visible,input:focus-visible,summary:focus-visible,.choice:focus-visible,.chip:focus-visible,.foot-link:focus-visible{outline:2px solid var(--staal);outline-offset:3px}
 
   @media (max-width:520px){.chips{grid-template-columns:1fr}.h-xl{font-size:42px}.h-l{font-size:34px}}
@@ -359,7 +388,7 @@ const LEGACY_SESSION_KEY = "loopbaan-gps-state-v1";
 const STORAGE_MAX_DAYS = 90;
 const PRIVACY_TEXT = "Je antwoorden blijven op dit apparaat. We sturen niets naar een server, gebruiken geen cookies en volgen je niet. Werk je op een computer van school of van iemand anders? Klik dan aan het eind op 'Wis mijn gegevens'.";
 function defaultState(){
-  return {screen:"cover",returnTo:"intro",m1i:0,m1hist:[],riasec:{R:0,I:0,A:0,S:0,W:0,C:0},values:[],env:{s1:50,s2:50},comp:{},focus:null,relayFrom:null,tw:{chosen:[],as1:null,dom:null}};
+  return {screen:"cover",returnTo:"intro",m1i:0,m1hist:[],riasec:{R:0,I:0,A:0,S:0,W:0,C:0},values:[],env:{s1:50,s2:50},comp:{},focus:null,relayFrom:null,tw:{chosen:[],as1:null,dom:null},notes:{twijfel:"",plan:""}};
 }
 const S = defaultState();
 const app = document.getElementById("app");
@@ -395,12 +424,41 @@ const COVER_ART=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 800" p
 
 /* ---------------- PERSISTENTIE (localStorage, alleen dit apparaat) ---------------- */
 function snapshotState(){
-  return {screen:S.screen,returnTo:S.returnTo,m1i:S.m1i,m1hist:S.m1hist,riasec:S.riasec,values:S.values,env:S.env,comp:S.comp,focus:S.focus,relayFrom:S.relayFrom,tw:S.tw};
+  return {screen:S.screen,returnTo:S.returnTo,m1i:S.m1i,m1hist:S.m1hist,riasec:S.riasec,values:S.values,env:S.env,comp:S.comp,focus:S.focus,relayFrom:S.relayFrom,tw:S.tw,notes:S.notes};
 }
 function applyState(st){
   Object.assign(S,st);
   if(!S.tw) S.tw={chosen:[],as1:null,dom:null};
+  if(!S.notes) S.notes={twijfel:"",plan:""};
   if(!S.returnTo) S.returnTo="intro";
+}
+window.setNote=(key,val)=>{
+  if(!S.notes) S.notes={twijfel:"",plan:""};
+  S.notes[key]=String(val).slice(0,400);
+  saveState();
+  const c=document.getElementById("note-count-"+key);
+  if(c) c.textContent=S.notes[key].length+"/400";
+  const ta=document.getElementById("note-"+key);
+  const field=ta&&ta.closest(".gespreks-field");
+  if(field){
+    const pr=field.querySelector(".gespreks-print");
+    if(pr){
+      const v=S.notes[key].trim();
+      pr.textContent=v;
+      pr.classList.toggle("empty",!v);
+    }
+  }
+};
+function syncGespreksPrint(doc){
+  const root=doc||document;
+  root.querySelectorAll(".gespreks-field").forEach((field)=>{
+    const ta=field.querySelector("textarea");
+    const pr=field.querySelector(".gespreks-print");
+    if(!ta||!pr) return;
+    const v=ta.value.trim();
+    pr.textContent=v;
+    pr.classList.toggle("empty",!v);
+  });
 }
 function resetStateFields(){applyState(defaultState());}
 function saveState(){
@@ -838,6 +896,43 @@ function result(){
   const naam=best.naam+(f?" — "+f.sub:"");
   const top2Codes=topCodes.slice(0,2);
   const verderKijkenSociaal=top2Codes.includes("S");
+  if(!S.notes) S.notes={twijfel:"",plan:""};
+  const top3Letters=riasecTop(3);
+  const lettersTekst=top3Letters.map(c=>`${c} (${TYPEMETA[c].naam}: ${TYPEMETA[c].tagline})`).join("; ");
+  const waardenTekst=S.values.slice(0,3).map(id=>VALUES.find(v=>v.id===id).l).join(" · ");
+  const groepenTekst=ranked.slice(0,2).map(r=>r.g.naam).join(" · ");
+  const noteTwijfel=S.notes.twijfel||"";
+  const notePlan=S.notes.plan||"";
+  const gesprekskaart=`<section class="card gesprekskaart" aria-labelledby="gesprekskaart-titel">
+      <div class="gespreks-band" aria-hidden="true"><span class="terra"></span><span class="staal"></span><span class="salie"></span><span class="amber"></span></div>
+      <div class="gesprekskaart-inner">
+        <h2 id="gesprekskaart-titel">Jouw gesprekskaart</h2>
+        <p class="gk-intro">Neem dit mee naar je gesprek. Jij bepaalt wat je deelt.</p>
+        <div class="gk-block"><strong>Mijn drie letters</strong>${top3Letters.join(", ")} — ${lettersTekst}</div>
+        <div class="gk-block"><strong>Wat ik belangrijk vind in werk</strong>${waardenTekst||"—"}</div>
+        <div class="gk-block"><strong>Beroepengroepen die bij mij lijken te passen</strong>${groepenTekst}</div>
+        <div class="gk-block"><strong>Vragen om samen te bespreken</strong>
+          <ol>
+            <li>Herken jij deze drie letters in mij? Waar zie je dat aan?</li>
+            <li>Welke van deze beroepengroepen past volgens jou bij mij, en welke niet?</li>
+            <li>Hoe kan ik uitzoeken of een opleiding past bij wat ik belangrijk vind?</li>
+            <li>Ken jij iemand die dit werk doet en met wie ik kan praten?</li>
+          </ol>
+        </div>
+        <div class="gespreks-field">
+          <label for="note-twijfel">Waar twijfel ik nog over?</label>
+          <textarea id="note-twijfel" maxlength="400" oninput="setNote('twijfel',this.value)">${noteTwijfel.replace(/</g,"&lt;")}</textarea>
+          <div class="gespreks-print ${noteTwijfel?"":"empty"}">${noteTwijfel.replace(/</g,"&lt;")}</div>
+          <div class="gespreks-count" id="note-count-twijfel">${noteTwijfel.length}/400</div>
+        </div>
+        <div class="gespreks-field">
+          <label for="note-plan">Wat ga ik de komende maand doen? (bijv. open dag, meeloopdag, gesprek met een student)</label>
+          <textarea id="note-plan" maxlength="400" oninput="setNote('plan',this.value)">${notePlan.replace(/</g,"&lt;")}</textarea>
+          <div class="gespreks-print ${notePlan?"":"empty"}">${notePlan.replace(/</g,"&lt;")}</div>
+          <div class="gespreks-count" id="note-count-plan">${notePlan.length}/400</div>
+        </div>
+      </div>
+    </section>`;
   const verderKijken=`<section class="card verder-kijken" data-html2canvas-ignore="true" aria-labelledby="verder-kijken-titel">
       <div class="verder-kijken-inner">
         <div class="verder-kijken-preview">
@@ -917,6 +1012,8 @@ function result(){
       <div style="margin-top:14px"><button class="btn salie" onclick="startTwijfel()">Vergelijk de opleidingen →</button></div>
     </div>`:''}
 
+    <div id="bewaar-uitvoer">
+    ${gesprekskaart}
     <div id="routekaart" style="margin-top:20px;border-radius:20px;overflow:hidden;display:flex;
         background:radial-gradient(140% 160% at 20% 10%, #33463f, #202a26 70%);color:#F1EBDF;
         box-shadow:0 22px 46px -20px rgba(42,38,32,.5)">
@@ -931,9 +1028,10 @@ function result(){
         <div style="font-family:'DM Mono',monospace;font-size:10.5px;opacity:.6;margin-top:12px">${new Date().toLocaleDateString('nl-NL')} · een route om te verkennen</div>
       </div>
     </div>
+    </div>
 
     <div style="margin-top:18px" class="noprint">
-      <button class="btn salie" onclick="saveCard()">Bewaar je routekaart als afbeelding</button>
+      <button class="btn salie" onclick="saveCard()">Bewaar als afbeelding</button>
       <button class="ghost-link" onclick="window.print()">Of bewaar de hele route als PDF</button>
     </div>
     ${verderKijken}
@@ -941,9 +1039,10 @@ function result(){
     <button type="button" class="ghost-link noprint" onclick="restart()">Opnieuw beginnen</button>`);
 }
 window.saveCard=async()=>{
-  const el=document.getElementById('routekaart');
-  try{ if(window.html2canvas){const c=await html2canvas(el,{scale:2,backgroundColor:null});
-    const a=document.createElement('a');a.download='mijn-loopbaanroute.png';a.href=c.toDataURL('image/png');a.click();return;} }
+  syncGespreksPrint();
+  const el=document.getElementById("bewaar-uitvoer");
+  try{ if(window.html2canvas){const c=await html2canvas(el,{scale:2,backgroundColor:"#EFE9DF",onclone:(doc)=>{syncGespreksPrint(doc);doc.querySelectorAll(".gesprekskaart textarea").forEach(t=>{t.style.display="none";});doc.querySelectorAll(".gespreks-count").forEach(e=>{e.style.display="none";});doc.querySelectorAll(".gespreks-print").forEach(p=>{p.style.display="block";});}});
+    const a=document.createElement("a");a.download="mijn-loopbaanroute.png";a.href=c.toDataURL("image/png");a.click();return;} }
   catch(e){}
   window.print();
 };
@@ -1013,6 +1112,7 @@ function twResult(){
 }
 window.go=(scr)=>{S.screen=scr;render();};
 
+window.addEventListener("beforeprint",()=>syncGespreksPrint());
 const hadSavedSession=loadState(); // herstelt een onderbroken sessie (zelfde tabblad/apparaat) automatisch
 if(!hadSavedSession) S.screen="cover";
 render();
