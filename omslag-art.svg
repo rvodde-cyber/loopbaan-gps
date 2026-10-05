@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 800" preserveAspectRatio="xMidYMid slice" role="img" aria-labelledby="cv-title">
+  <title id="cv-title">Illustratie van een route door landschappen naar een bestemming</title>
+  <defs>
+    <linearGradient id="cv-sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1E3552"/>
+      <stop offset="100%" stop-color="#2A4A6E"/>
+    </linearGradient>
+    <filter id="cv-glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="12" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect width="600" height="800" fill="url(#cv-sky)"/>
+  <path id="cv-band-blue" fill="#3F6EA8" d="M0,280 C120,250 200,310 320,290 S520,240 600,270 L600,380 C480,400 360,350 240,370 S80,420 0,390 Z"/>
+  <path id="cv-band-salie" fill="#6E9268" d="M0,390 C140,360 260,420 400,400 S560,360 600,400 L600,510 C460,530 300,480 160,500 S40,540 0,520 Z"/>
+  <path id="cv-band-terra" fill="#C15E3C" d="M0,520 C100,490 220,550 340,530 S500,490 600,520 L600,620 C480,640 320,590 180,610 S60,650 0,630 Z"/>
+  <path id="cv-band-amber" fill="#CE8A25" d="M0,630 C130,600 250,660 380,640 S540,600 600,630 L600,720 C470,740 300,700 150,720 S50,750 0,730 Z"/>
+  <path id="cv-band-cream" fill="#EFE9DF" d="M0,730 C120,710 240,760 360,740 S520,710 600,730 L600,800 L0,800 Z"/>
+  <path id="cv-route" fill="none" stroke="#F1EBDF" stroke-width="3" stroke-dasharray="6 10" stroke-linecap="round" d="M80,760 C120,700 100,640 160,580 C220,520 200,460 280,420 C360,380 340,320 400,260 C440,220 460,180 300,120"/>
+  <circle id="cv-dot-1" cx="130" cy="700" r="9" fill="#1E3552"/>
+  <circle id="cv-dot-2" cx="175" cy="565" r="9" fill="#6E9268"/>
+  <circle id="cv-dot-3" cx="295" cy="435" r="9" fill="#C15E3C"/>
+  <circle id="cv-dot-4" cx="385" cy="295" r="9" fill="#CE8A25"/>
+  <g id="cv-pin" filter="url(#cv-glow)">
+    <path fill="#C15E3C" d="M300,95c-22,0-40,18-40,40 0,30 40,72 40,72s40-42 40-72c0-22-18-40-40-40z"/>
+    <circle cx="300" cy="135" r="14" fill="#F1EBDF"/>
+  </g>
+</svg>

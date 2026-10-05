@@ -125,9 +125,44 @@
   }
   @media (max-width:899px){.verder-kijken-body .btn{width:100%}}
 
+  /* omslag #cover */
+  body.is-cover{padding:0;background:#1E3552}
+  body.is-cover{background-image:none}
+  #app.is-cover{max-width:none;margin:0;width:100%}
+  .cover{min-height:100vh;min-height:100dvh}
+  .cover-inner{display:flex;flex-direction:column;min-height:100vh;min-height:100dvh}
+  .cover-art{position:relative;overflow:hidden;flex-shrink:0;height:58vh;min-height:58vh}
+  .cover-art svg{width:100%;height:100%;display:block}
+  .cover-panel{background:#1E3552;color:#F1EBDF;padding:28px 24px 36px;flex:1}
+  .cover-kicker{font-family:"DM Mono",monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;opacity:.88}
+  .cover-title{font-family:"Cormorant Garamond",serif;font-weight:500;font-size:clamp(38px,8vw,52px);line-height:1.08;margin-top:10px}
+  .cover-sub{font-size:15.5px;line-height:1.55;margin-top:12px;max-width:44ch;opacity:.92}
+  .cover-steps{list-style:none;margin-top:22px;display:flex;flex-direction:column;gap:11px}
+  .cover-steps li{display:flex;align-items:center;gap:10px;font-size:14.5px}
+  .cover-step-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;box-shadow:0 0 0 2px rgba(241,235,223,.25)}
+  .cover-step-dot.terra{background:var(--terra)}
+  .cover-step-dot.staal{background:var(--staal)}
+  .cover-step-dot.salie{background:var(--salie)}
+  .cover-step-dot.amber{background:var(--amber)}
+  .cover-panel .btn{margin-top:26px}
+  .cover-meta{font-family:"DM Mono",monospace;font-size:11.5px;opacity:.72;margin-top:14px;text-align:center}
+  .cover-panel .btn:focus-visible,.cover-panel button:focus-visible{outline:2px solid #F1EBDF;outline-offset:3px}
+  @media (min-width:900px){
+    .cover-inner{display:grid;grid-template-columns:1fr 1fr;align-items:stretch}
+    .cover-art{height:auto;min-height:100vh;min-height:100dvh}
+  }
+  @media (min-width:900px){
+    .cover-panel{display:flex;flex-direction:column;justify-content:center;padding:48px 56px}
+    .cover-meta{text-align:left}
+  }
+  @media (prefers-reduced-motion:no-preference){
+    .cover-art.cv-animate #cv-route{stroke-dasharray:1400;stroke-dashoffset:1400;animation:cv-route-draw 1.4s ease-out forwards}
+  }
+  @keyframes cv-route-draw{to{stroke-dashoffset:0}}
+
   @media (max-width:520px){.chips{grid-template-columns:1fr}.h-xl{font-size:42px}.h-l{font-size:34px}}
   @media (prefers-reduced-motion:reduce){*{animation:none!important}}
-  @media print{body{background:#fff;padding:0}.card{box-shadow:none;border:1px solid #ddd}.noprint{display:none!important}.verder-kijken{display:none!important}}
+  @media print{body{background:#fff;padding:0}.card{box-shadow:none;border:1px solid #ddd}.noprint{display:none!important}.verder-kijken{display:none!important}.cover{display:none!important}}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
@@ -280,8 +315,37 @@ function beroepenVoorTop(topCodes,max){const set=new Set(topCodes);const m=BEROE
 
 /* ---------------- STATE ---------------- */
 const STORAGE_KEY = "loopbaan-gps-state-v1";
-const S = { screen:"intro", m1i:0, m1hist:[], riasec:{R:0,I:0,A:0,S:0,W:0,C:0}, values:[], env:{s1:50,s2:50}, comp:{}, focus:null, relayFrom:null, tw:{chosen:[],as1:null,dom:null} };
+const S = { screen:"cover", m1i:0, m1hist:[], riasec:{R:0,I:0,A:0,S:0,W:0,C:0}, values:[], env:{s1:50,s2:50}, comp:{}, focus:null, relayFrom:null, tw:{chosen:[],as1:null,dom:null} };
 const app = document.getElementById("app");
+/* sync met omslag-art.svg */
+const COVER_ART=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 800" preserveAspectRatio="xMidYMid slice" role="img" aria-labelledby="cv-title">
+  <title id="cv-title">Illustratie van een route door landschappen naar een bestemming</title>
+  <defs>
+    <linearGradient id="cv-sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1E3552"/>
+      <stop offset="100%" stop-color="#2A4A6E"/>
+    </linearGradient>
+    <filter id="cv-glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="12" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect width="600" height="800" fill="url(#cv-sky)"/>
+  <path id="cv-band-blue" fill="#3F6EA8" d="M0,280 C120,250 200,310 320,290 S520,240 600,270 L600,380 C480,400 360,350 240,370 S80,420 0,390 Z"/>
+  <path id="cv-band-salie" fill="#6E9268" d="M0,390 C140,360 260,420 400,400 S560,360 600,400 L600,510 C460,530 300,480 160,500 S40,540 0,520 Z"/>
+  <path id="cv-band-terra" fill="#C15E3C" d="M0,520 C100,490 220,550 340,530 S500,490 600,520 L600,620 C480,640 320,590 180,610 S60,650 0,630 Z"/>
+  <path id="cv-band-amber" fill="#CE8A25" d="M0,630 C130,600 250,660 380,640 S540,600 600,630 L600,720 C470,740 300,700 150,720 S50,750 0,730 Z"/>
+  <path id="cv-band-cream" fill="#EFE9DF" d="M0,730 C120,710 240,760 360,740 S520,710 600,730 L600,800 L0,800 Z"/>
+  <path id="cv-route" fill="none" stroke="#F1EBDF" stroke-width="3" stroke-dasharray="6 10" stroke-linecap="round" d="M80,760 C120,700 100,640 160,580 C220,520 200,460 280,420 C360,380 340,320 400,260 C440,220 460,180 300,120"/>
+  <circle id="cv-dot-1" cx="130" cy="700" r="9" fill="#1E3552"/>
+  <circle id="cv-dot-2" cx="175" cy="565" r="9" fill="#6E9268"/>
+  <circle id="cv-dot-3" cx="295" cy="435" r="9" fill="#C15E3C"/>
+  <circle id="cv-dot-4" cx="385" cy="295" r="9" fill="#CE8A25"/>
+  <g id="cv-pin" filter="url(#cv-glow)">
+    <path fill="#C15E3C" d="M300,95c-22,0-40,18-40,40 0,30 40,72 40,72s40-42 40-72c0-22-18-40-40-40z"/>
+    <circle cx="300" cy="135" r="14" fill="#F1EBDF"/>
+  </g>
+</svg>`;
 
 /* ---------------- PERSISTENTIE (sessionStorage) ----------------
    Bewaart alleen binnen dit tabblad/apparaat, nooit verstuurd. Voorkomt dat
@@ -349,6 +413,10 @@ function needsDeepening(){
 
 /* ---------------- SCREENS ---------------- */
 function render(){
+  const onCover=S.screen==="cover";
+  document.body.classList.toggle("is-cover",onCover);
+  app.classList.toggle("is-cover",onCover);
+  if(S.screen==="cover") return cover();
   if(S.screen==="intro") return intro();
   if(S.screen==="m1") return m1();
   if(S.screen==="m2") return m2();
@@ -363,6 +431,32 @@ function render(){
   if(S.screen==="twResult") return twResult();
 }
 function set(html){app.innerHTML=html;window.scrollTo(0,0);saveState();}
+function focusHeading(id){
+  requestAnimationFrame(()=>{const el=document.getElementById(id);if(el){el.tabIndex=-1;el.focus();}});
+}
+
+function cover(){
+  const animate=window.matchMedia("(prefers-reduced-motion: reduce)").matches?"":" cv-animate";
+  set(`<section id="cover" class="cover" data-html2canvas-ignore="true">
+    <div class="cover-inner">
+      <div class="cover-art${animate}" aria-hidden="true">${COVER_ART}</div>
+      <div class="cover-panel">
+        <p class="cover-kicker">Loopbaan GPS</p>
+        <h1 class="cover-title">Vind jouw route</h1>
+        <p class="cover-sub">Ontdek in vier korte stappen wat bij je past — en neem je uitkomst mee naar het gesprek met je mentor, decaan of ouders.</p>
+        <ul class="cover-steps">
+          <li><span class="cover-step-dot terra" aria-hidden="true"></span>Interesses</li>
+          <li><span class="cover-step-dot staal" aria-hidden="true"></span>Werkwaarden</li>
+          <li><span class="cover-step-dot salie" aria-hidden="true"></span>Werkomgeving</li>
+          <li><span class="cover-step-dot amber" aria-hidden="true"></span>Competenties</li>
+        </ul>
+        <button type="button" class="btn ink" onclick="startFromCover()">Start je route</button>
+        <p class="cover-meta">± 15 minuten · je antwoorden blijven op dit apparaat</p>
+      </div>
+    </div>
+  </section>`);
+}
+window.startFromCover=()=>{S.screen="intro";render();focusHeading("intro-heading");};
 
 function heroSVG(){
   return `<svg viewBox="0 0 360 240" width="100%" style="max-width:380px;display:block;margin:0 auto" xmlns="http://www.w3.org/2000/svg">
@@ -392,7 +486,7 @@ function intro(){
   set(`<div class="center" style="padding-top:6px">
     ${heroSVG()}
     <div class="eyebrow" style="color:var(--muted);margin-top:6px">52.0116° N · 5.0919° E</div>
-    <h1 class="h-xl" style="margin-top:10px">Loopbaan GPS</h1>
+    <h1 id="intro-heading" class="h-xl" style="margin-top:10px">Loopbaan GPS</h1>
     <p class="sub" style="font-size:17px;margin-top:6px">Bereken jouw route</p>
     <div class="card" style="margin-top:24px;text-align:left">
       <p style="font-size:15.5px;line-height:1.6;color:var(--ink)">Vier korte signalen — je interesses, je waarden, je werkomgeving en je competenties — samen wijzen ze een richting aan. Geen test met een uitslag, maar een spiegel om te verkennen.</p>
@@ -712,7 +806,8 @@ function twResult(){
 }
 window.go=(scr)=>{S.screen=scr;render();};
 
-loadState(); // herstelt een onderbroken sessie (zelfde tabblad/apparaat) automatisch
+const hadSavedSession=loadState(); // herstelt een onderbroken sessie (zelfde tabblad/apparaat) automatisch
+if(!hadSavedSession) S.screen="cover";
 render();
 </script>
 </body>
