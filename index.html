@@ -12,6 +12,7 @@
 <meta property="og:locale" content="nl_NL">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="apple-touch-icon.png" sizes="180x180">
+<link rel="preload" as="image" type="image/webp" href="img/omslag-600.webp" imagesrcset="img/omslag-600.webp 600w, img/omslag-1200.webp 1200w" imagesizes="(min-width:900px) 50vw, 100vw">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=DM+Sans:opsz,wght@9..40,400;9..40,500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -139,8 +140,8 @@
   #app.is-cover{max-width:none;margin:0;width:100%}
   .cover{min-height:100vh;min-height:100dvh}
   .cover-inner{display:flex;flex-direction:column;min-height:100vh;min-height:100dvh}
-  .cover-art{position:relative;overflow:hidden;flex-shrink:0;height:58vh;min-height:58vh}
-  .cover-art svg{width:100%;height:100%;display:block}
+  .cover-art{position:relative;overflow:hidden;flex-shrink:0;height:58vh;min-height:58vh;background:#1E3552}
+  .cover-art picture,.cover-art img{width:100%;height:100%;display:block;object-fit:cover}
   .cover-panel{background:#1E3552;color:#F1EBDF;padding:28px 24px 36px;flex:1}
   .cover-kicker{font-family:"DM Mono",monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;opacity:.88}
   .cover-title{font-family:"Cormorant Garamond",serif;font-weight:500;font-size:clamp(38px,8vw,52px);line-height:1.08;margin-top:10px}
@@ -163,10 +164,19 @@
     .cover-panel{display:flex;flex-direction:column;justify-content:center;padding:48px 56px}
     .cover-meta{text-align:left}
   }
+  .module-band{max-width:600px;margin:0 auto;border-radius:22px;overflow:hidden;aspect-ratio:16/9;background:#1E3552}
+  .module-band--219{aspect-ratio:21/9}
+  .module-band picture,.module-band img{display:block;width:100%;height:100%;object-fit:cover}
+  .relay-visual{position:relative;max-width:600px;margin:0 auto 4px}
+  .relay-visual .module-band{margin:0}
+  .relay-badge{width:52px;height:52px;margin:-26px auto 0;position:relative;z-index:2;box-shadow:0 10px 22px -8px rgba(42,38,32,.45)}
+  .relay-visual+.center{padding-top:4px}
+  .result-comp-band{margin-bottom:18px}
+  .illus-fade img{opacity:1}
   @media (prefers-reduced-motion:no-preference){
-    .cover-art.cv-animate #cv-route{stroke-dasharray:1400;stroke-dashoffset:1400;animation:cv-route-draw 1.4s ease-out forwards}
+    .illus-fade img{opacity:0;animation:illus-in .4s ease forwards}
   }
-  @keyframes cv-route-draw{to{stroke-dashoffset:0}}
+  @keyframes illus-in{to{opacity:1}}
 
   .app-foot{margin-top:28px;padding-top:18px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:10px 18px;justify-content:center}
   .foot-link{background:none;border:none;padding:0;font-family:"DM Mono",monospace;font-size:12px;color:var(--muted);cursor:pointer;text-decoration:underline}
@@ -219,8 +229,8 @@
   button:focus-visible,a:focus-visible,input:focus-visible,summary:focus-visible,.choice:focus-visible,.chip:focus-visible,.foot-link:focus-visible{outline:2px solid var(--staal);outline-offset:3px}
 
   @media (max-width:520px){.chips{grid-template-columns:1fr}.h-xl{font-size:42px}.h-l{font-size:34px}}
-  @media (prefers-reduced-motion:reduce){*{animation:none!important}}
-  @media print{body{background:#fff;padding:0}.card{box-shadow:none;border:1px solid #ddd}.noprint{display:none!important}.verder-kijken{display:none!important}.cover{display:none!important}}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important}.illus-fade img{opacity:1!important}}
+  @media print{body{background:#fff;padding:0}.card{box-shadow:none;border:1px solid #ddd}.noprint{display:none!important}.verder-kijken{display:none!important}.cover{display:none!important}.cover-art,.module-band,.relay-visual,.result-comp-band{display:none!important}}
 </style>
 <script src="vendor/html2canvas.min.js"></script>
 </head>
@@ -392,35 +402,7 @@ function defaultState(){
 }
 const S = defaultState();
 const app = document.getElementById("app");
-/* sync met omslag-art.svg */
-const COVER_ART=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 800" preserveAspectRatio="xMidYMid slice" role="img" aria-labelledby="cv-title">
-<title id="cv-title">Een stippellijnroute over golvend landschap naar een locatiepin</title>
-<defs>
-<filter id="cv-brush" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.018 0.045" numOctaves="2" seed="7"/><feDisplacementMap in="SourceGraphic" scale="14"/></filter>
-<radialGradient id="cv-glow" gradientUnits="userSpaceOnUse" cx="440" cy="190" r="380"><stop offset="0" stop-color="#E7B45A" stop-opacity=".42"/><stop offset=".35" stop-color="#E7B45A" stop-opacity=".18"/><stop offset=".7" stop-color="#E7B45A" stop-opacity=".05"/><stop offset="1" stop-color="#E7B45A" stop-opacity="0"/></radialGradient>
-</defs>
-<rect width="600" height="800" fill="#1E3552"/>
-<rect width="600" height="800" fill="url(#cv-glow)"/>
-<g filter="url(#cv-brush)">
-<path d="M-20 360 C90 320 170 390 280 350 S470 300 620 340 V820 H-20Z" fill="#3E5F82" opacity=".9"/>
-<path d="M-20 450 C110 410 200 480 320 440 S500 400 620 430 V820 H-20Z" fill="#7F9A86"/>
-<path d="M-20 540 C80 510 210 575 330 535 S520 500 620 525 V820 H-20Z" fill="#C2704C"/>
-<path d="M-20 630 C120 600 230 660 350 625 S530 600 620 615 V820 H-20Z" fill="#E7B45A"/>
-<path d="M-20 715 C100 690 250 740 380 705 S540 690 620 700 V820 H-20Z" fill="#F4ECDD"/>
-</g>
-<path id="cv-route" d="M128 712 C170 700 120 640 210 600 S360 560 330 500 S250 430 340 390 S470 330 450 250" fill="none" stroke="#F4ECDD" stroke-width="4" stroke-linecap="round" stroke-dasharray="2 12"/>
-<g stroke="#F4ECDD" stroke-width="3">
-<circle cx="150" cy="680" r="11" fill="#3E5F82"/>
-<circle cx="268" cy="577" r="11" fill="#7F9A86"/>
-<circle cx="300" cy="460" r="11" fill="#C2704C"/>
-<circle cx="405" cy="350" r="11" fill="#E7B45A"/>
-</g>
-<g transform="translate(450 250)">
-<ellipse cx="0" cy="4" rx="16" ry="5" fill="#000" opacity=".25"/>
-<path d="M0 0 C-6 -14 -22 -26 -22 -44 A22 22 0 0 1 22 -44 C22 -26 6 -14 0 0Z" fill="#C2704C" stroke="#F4ECDD" stroke-width="3"/>
-<circle cx="0" cy="-44" r="8" fill="#F4ECDD"/>
-</g>
-</svg>`;
+/* Reserve-illustratie: omslag-art.svg (niet meer inline geladen) */
 
 /* ---------------- PERSISTENTIE (localStorage, alleen dit apparaat) ---------------- */
 function snapshotState(){
@@ -592,6 +574,29 @@ const svg = {
   gear:'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7"><circle cx="12" cy="12" r="3.3"/><path d="M12 4v2.6M12 17.4V20M4 12h2.6M17.4 12H20M6.3 6.3l1.9 1.9M15.8 15.8l1.9 1.9M17.7 6.3l-1.9 1.9M8.2 15.8l-1.9 1.9"/></svg>'
 };
 const MODS=[{k:"terra",ic:svg.compass,nm:"Interesses"},{k:"staal",ic:svg.scale,nm:"Werkwaarden"},{k:"salie",ic:svg.land,nm:"Werkomgeving"},{k:"amber",ic:svg.gear,nm:"Competenties"}];
+const RELAY_MODULE_IMG={m1:"interesses",m2:"werkwaarden",m3:"werkomgeving"};
+const PRELOAD_NEXT_MODULE={m1:"werkwaarden",m2:"werkomgeving",m3:"competenties",m4:"competenties"};
+function preloadModuleWebp(slug){
+  if(!slug) return;
+  new Image().src="img/"+slug+"-800.webp";
+  new Image().src="img/"+slug+"-1600.webp";
+}
+function moduleLandscapePicture(slug,o={}){
+  const lazy=o.lazy!==false;
+  const loadAttr=lazy?' loading="lazy"':' loading="eager"';
+  const fp=o.fetchpriority?` fetchpriority="${o.fetchpriority}"`:"";
+  const wide=o.wide219?" module-band--219":"";
+  return `<div class="module-band${wide}" data-html2canvas-ignore="true"><picture class="illus-fade">
+    <source type="image/webp" srcset="img/${slug}-800.webp 800w, img/${slug}-1600.webp 1600w" sizes="(min-width:640px) 600px, 100vw">
+    <img src="img/${slug}-1600.webp" alt="" width="1600" height="900"${loadAttr}${fp}>
+  </picture></div>`;
+}
+function coverPicture(){
+  return `<picture class="illus-fade" data-html2canvas-ignore="true">
+    <source type="image/webp" srcset="img/omslag-600.webp 600w, img/omslag-1200.webp 1200w" sizes="(min-width:900px) 50vw, 100vw">
+    <img src="img/omslag-1200.webp" alt="" width="1200" height="1600" fetchpriority="high" loading="eager">
+  </picture>`;
+}
 function progress(n){ // n = current module 1..4
   const m=MODS[n-1];
   let steps=""; for(let i=1;i<=4;i++) steps+=`<i class="${i<=n?'on':''}"></i>`;
@@ -632,6 +637,7 @@ function needsDeepening(){
 /* ---------------- SCREENS ---------------- */
 function render(opts={}){
   renderOpts=opts;
+  if(PRELOAD_NEXT_MODULE[S.screen]) preloadModuleWebp(PRELOAD_NEXT_MODULE[S.screen]);
   const onCover=S.screen==="cover";
   document.body.classList.toggle("is-cover",onCover);
   app.classList.toggle("is-cover",onCover);
@@ -663,10 +669,9 @@ function focusHeading(id){
 }
 
 function cover(){
-  const animate=window.matchMedia("(prefers-reduced-motion: reduce)").matches?"":" cv-animate";
   set(`<section id="cover" class="cover" data-html2canvas-ignore="true">
     <div class="cover-inner">
-      <div class="cover-art${animate}" aria-hidden="true">${COVER_ART}</div>
+      <div class="cover-art" aria-hidden="true">${coverPicture()}</div>
       <div class="cover-panel">
         <p class="cover-kicker">Loopbaan GPS</p>
         <h1 class="cover-title">Vind jouw route</h1>
@@ -800,11 +805,15 @@ function relay(){
     m2:{n:2,k:"staal",ic:svg.scale,nm:"Werkwaarden",next:"m3"},
     m3:{n:3,k:"salie",ic:svg.land,nm:"Werkomgeving",next:"m4"}
   }[S.relayFrom];
+  const relaySlug=RELAY_MODULE_IMG[S.relayFrom];
   let sats=""; for(let i=1;i<=4;i++){const done=i<=info.n;const m=MODS[i-1];
     sats+=`<div style="text-align:center;opacity:${done?1:.4}"><div class="modbadge bg-${m.k}" style="width:44px;height:44px;margin:0 auto;${done?'':'filter:grayscale(.6)'}">${m.ic}</div></div>`;}
-  set(`<div class="center" style="padding-top:26px">
+  set(`<div class="relay-visual">
+      ${moduleLandscapePicture(relaySlug,{lazy:false})}
+      <div class="modbadge bg-${info.k} relay-badge" aria-hidden="true">${info.ic}</div>
+    </div>
+    <div class="center">
       <div class="eyebrow" style="color:var(--muted)">signaal ${info.n} van 4 ontvangen</div>
-      <div class="modbadge bg-${info.k}" style="width:96px;height:96px;margin:22px auto 0">${info.ic}</div>
       <h1 class="h-m" style="margin-top:20px">${info.nm} vergrendeld</h1>
       <p class="sub" style="font-size:17px;font-family:'Cormorant Garamond',serif;font-style:italic;color:var(--ink);margin-top:10px">${mirror(S.relayFrom)}</p>
       <div style="display:flex;gap:16px;justify-content:center;margin:28px 0">${sats}</div>
@@ -951,7 +960,8 @@ function result(){
         </div>
       </div>
     </section>`;
-  set(`<div class="center" style="padding-top:6px">
+  const resultCompBand=`<div class="result-comp-band">${moduleLandscapePicture("competenties",{wide219:true})}</div>`;
+  set(`${resultCompBand}<div class="center" style="padding-top:6px">
       <div class="eyebrow" style="color:var(--salie-d)">✦ route berekend</div>
       <h1 class="h-l" style="margin-top:12px">Je route wijst richting<br>${best.zin}.</h1>
     </div>
