@@ -516,8 +516,6 @@ function onPopState(e){
     historySuppress=true;
     m1backStep();
     m1();
-    saveState();
-    afterScreenPaint({skipHistory:true});
     historySuppress=false;
     return;
   }
