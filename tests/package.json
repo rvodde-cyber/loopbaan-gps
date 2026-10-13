@@ -1,0 +1,17 @@
+{
+  "name": "loopbaan-gps-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "test:quick": "playwright test specs/a-doorloop.spec.ts --project=desktop-chromium --project=iphone-se-chromium",
+    "test:report": "playwright test && node scripts/write-rapport.mjs"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.10.1",
+    "@playwright/test": "^1.49.1",
+    "lighthouse": "^12.3.0",
+    "playwright-lighthouse": "^4.0.0",
+    "serve": "^14.2.6"
+  }
+}
