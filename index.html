@@ -261,6 +261,7 @@ if(location.search.includes("reset-cache=1")){
     try{
       if(self.caches){for(const k of await caches.keys())await caches.delete(k);}
       if(navigator.serviceWorker){for(const r of await navigator.serviceWorker.getRegistrations())await r.unregister();}
+      try{sessionStorage.setItem("loopbaangps:skip-sw","1");}catch(e){}
     }catch(e){}
     const path=location.pathname||"/";
     location.replace(path.endsWith("/")?path:path+"/");
@@ -1178,7 +1179,9 @@ window.go=(scr)=>{S.screen=scr;render();};
 
 window.addEventListener("beforeprint",()=>syncGespreksPrint());
 if(!window.__loopbaanGpsResetCache){
-  if("serviceWorker" in navigator){
+  let skipSw=false;
+  try{skipSw=sessionStorage.getItem("loopbaangps:skip-sw")==="1";if(skipSw)sessionStorage.removeItem("loopbaangps:skip-sw");}catch(e){}
+  if(!skipSw&&"serviceWorker" in navigator){
     const h=location.hostname;
     if(location.protocol==="https:"||h==="localhost"||h==="127.0.0.1"){
       try{navigator.serviceWorker.register("./sw.js");}catch(e){}

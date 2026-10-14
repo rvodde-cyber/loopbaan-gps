@@ -63,15 +63,32 @@ async function networkFirstHtml(request) {
   }
 }
 
+function smallerImageFallbackUrl(url) {
+  if (url.includes("-1600.webp")) return url.replace("-1600.webp", "-800.webp");
+  if (url.includes("-1200.webp")) return url.replace("-1200.webp", "-600.webp");
+  return null;
+}
+
 async function cacheFirstAsset(request) {
   const cached = await caches.match(request);
   if (cached) return cached;
-  const response = await fetch(request);
-  if (response.ok && new URL(request.url).origin === self.location.origin) {
-    const cache = await caches.open(CACHE_NAME);
-    cache.put(request, response.clone());
+  try {
+    const response = await fetch(request);
+    if (response.ok && new URL(request.url).origin === self.location.origin) {
+      const cache = await caches.open(CACHE_NAME);
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch {
+    const smaller = smallerImageFallbackUrl(request.url);
+    if (smaller) {
+      const fb = await caches.match(smaller);
+      if (fb) return fb;
+    }
+    const any = await caches.match(request);
+    if (any) return any;
+    throw new Error("offline");
   }
-  return response;
 }
 
 self.addEventListener("fetch", (event) => {
