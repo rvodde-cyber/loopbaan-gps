@@ -1,4 +1,4 @@
-const CACHE_NAME = "loopbaangps-v1-2026-10";
+const CACHE_NAME = "loopbaangps-v2-2026-10";
 
 const PRECACHE_URLS = [
   "./",
@@ -16,11 +16,21 @@ const PRECACHE_URLS = [
   "fonts/cormorant-garamond-latin-500-normal.woff2",
   "fonts/cormorant-garamond-latin-400-italic.woff2",
   "img/omslag-600.webp",
+  "img/omslag-1200.webp",
   "img/interesses-800.webp",
   "img/werkwaarden-800.webp",
   "img/werkomgeving-800.webp",
   "img/competenties-800.webp",
+  "hbo-opleidingen-sociaal-domein-preview.webp",
+  "hbo-opleidingen-sociaal-domein.pdf",
 ];
+
+const TRANSPARENT_PNG = Uint8Array.from(
+  atob(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+  ),
+  (c) => c.charCodeAt(0),
+);
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -42,6 +52,28 @@ function isHtmlNavigation(request) {
   return request.method === "GET" && accept && accept.includes("text/html");
 }
 
+function isImageRequest(request) {
+  if (request.destination === "image") return true;
+  const path = new URL(request.url).pathname;
+  return /\.(webp|png|jpe?g|gif|svg|ico|avif)$/i.test(path);
+}
+
+function offlineAssetResponse(request) {
+  if (isImageRequest(request)) {
+    return new Response(TRANSPARENT_PNG, {
+      status: 200,
+      headers: { "Content-Type": "image/png", "Cache-Control": "no-store" },
+    });
+  }
+  return new Response("", { status: 504, statusText: "Offline" });
+}
+
+function respondSafely(event, handlerPromise) {
+  event.respondWith(
+    handlerPromise.catch(() => offlineAssetResponse(event.request)),
+  );
+}
+
 async function networkFirstHtml(request) {
   const cache = await caches.open(CACHE_NAME);
   const fallback = () =>
@@ -59,7 +91,7 @@ async function networkFirstHtml(request) {
   } catch {
     const cached = await fallback();
     if (cached) return cached;
-    throw new Error("offline");
+    return new Response("", { status: 504, statusText: "Offline" });
   }
 }
 
@@ -87,7 +119,7 @@ async function cacheFirstAsset(request) {
     }
     const any = await caches.match(request);
     if (any) return any;
-    throw new Error("offline");
+    return offlineAssetResponse(request);
   }
 }
 
@@ -96,9 +128,9 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
 
   if (isHtmlNavigation(event.request)) {
-    event.respondWith(networkFirstHtml(event.request));
+    respondSafely(event, networkFirstHtml(event.request));
     return;
   }
   if (event.request.method !== "GET") return;
-  event.respondWith(cacheFirstAsset(event.request));
+  respondSafely(event, cacheFirstAsset(event.request));
 });
