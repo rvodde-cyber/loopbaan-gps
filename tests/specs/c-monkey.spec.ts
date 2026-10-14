@@ -115,7 +115,9 @@ async function monkeyRun(
 
 test.describe.configure({ timeout: 180_000 });
 
-for (let seed = 0; seed < 200; seed++) {
+const MONKEY_RUNS = Math.max(1, parseInt(process.env.MONKEY_RUNS ?? "200", 10) || 200);
+
+for (let seed = 0; seed < MONKEY_RUNS; seed++) {
   test(`monkey seed ${seed}`, async ({ page, baseURL }) => {
     const log: Action[] = [];
     try {
