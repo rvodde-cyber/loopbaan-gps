@@ -26,9 +26,10 @@ test.describe("G · offline", () => {
     context,
     browserName,
   }) => {
+    // WebKit: SW gooit pageerror bij niet-geprecachte assets (bv. hbo-preview.webp op resultaat); Chromium gate negeert requestfailed.
     test.skip(
       browserName === "webkit",
-      "Service worker offline — Chromium (Chrome/Android op de open dag)",
+      "WebKit offline: FetchEvent pageerror op ontbrekende precache (hbo-preview.webp); open dag Chrome/Android",
     );
     await clearAppStorage(page);
     await clearServiceWorkerAndCaches(page);

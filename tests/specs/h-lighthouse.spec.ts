@@ -1,4 +1,3 @@
-import { execSync } from "node:child_process";
 import { test, expect } from "@playwright/test";
 
 test.describe("H · prestaties (eerste laadgewicht)", () => {
@@ -43,20 +42,37 @@ test.describe("H · prestaties (eerste laadgewicht)", () => {
     expect(causes, causes.join("\n")).toHaveLength(0);
   });
 
-  test("Lighthouse PWA-installeerbaarheid zonder fouten", async ({ baseURL, browserName }) => {
+  test("PWA manifest, icons en service worker (LH 12.x heeft geen pwa-categorie)", async ({
+    page,
+    baseURL,
+    browserName,
+  }) => {
     test.skip(browserName !== "chromium", "Chromium-only");
-    const json = execSync(
-      `npx lighthouse ${baseURL!} --only-categories=pwa --quiet --output=json --chrome-flags="--headless=new"`,
-      { encoding: "utf8", maxBuffer: 20_000_000, cwd: import.meta.dirname, shell: true },
+    await page.goto(baseURL! + "/");
+    const manifest = await page.evaluate(async () => {
+      const link = document.querySelector('link[rel="manifest"]');
+      if (!link) return null;
+      const res = await fetch((link as HTMLLinkElement).href);
+      return res.ok ? res.json() : null;
+    });
+    expect(manifest?.name).toBe("Loopbaan GPS");
+    expect(manifest?.display).toBe("standalone");
+    expect(manifest?.start_url).toBeTruthy();
+    const icons = (manifest?.icons ?? []) as { sizes?: string; purpose?: string }[];
+    expect(icons.some((i) => i.sizes === "192x192")).toBe(true);
+    expect(icons.some((i) => i.sizes === "512x512")).toBe(true);
+    expect(icons.some((i) => i.sizes === "512x512" && i.purpose === "maskable")).toBe(
+      true,
     );
-    const report = JSON.parse(json) as {
-      categories?: { pwa?: { score: number } };
-    };
-    const score = report.categories?.pwa?.score ?? 0;
+    const swOk = await page.evaluate(async () => {
+      const reg = await navigator.serviceWorker.register("./sw.js");
+      await navigator.serviceWorker.ready;
+      return Boolean(reg.installing || reg.waiting || reg.active);
+    });
+    expect(swOk).toBe(true);
     test.info().annotations.push({
       type: "metrics",
-      description: `Lighthouse PWA score=${score}`,
+      description: "manifest+SW OK (vervangt Lighthouse pwa-categorie)",
     });
-    expect(score).toBe(1);
   });
 });
