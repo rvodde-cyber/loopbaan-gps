@@ -11,7 +11,20 @@ function isFontCdn(url: string) {
   return url.includes("fonts.googleapis.com") || url.includes("fonts.gstatic.com");
 }
 
-export function attachQualityGate(page: Page, origin: string): QualityGate {
+const OPTIONAL_OFFLINE_ASSETS = /hbo-opleidingen-sociaal-domein-preview\.webp$/;
+
+export type QualityGateOptions = {
+  /** Chromium logt failed fetches bij offline herladen; SW levert alsnog cache. */
+  ignoreOfflineResourceConsole?: boolean;
+  /** PDF-preview staat niet in SW-precache; lazy op resultaat. */
+  ignoreUncachedOptionalAssets?: boolean;
+};
+
+export function attachQualityGate(
+  page: Page,
+  origin: string,
+  options: QualityGateOptions = {},
+): QualityGate {
   const gate: QualityGate = {
     consoleErrors: [],
     pageErrors: [],
@@ -20,12 +33,24 @@ export function attachQualityGate(page: Page, origin: string): QualityGate {
   };
 
   page.on("console", (msg) => {
-    if (msg.type() === "error") gate.consoleErrors.push(msg.text());
+    if (msg.type() !== "error") return;
+    const text = msg.text();
+    if (
+      options.ignoreOfflineResourceConsole &&
+      /^Failed to load resource:/.test(text)
+    ) {
+      return;
+    }
+    gate.consoleErrors.push(text);
   });
   page.on("pageerror", (err) => gate.pageErrors.push(String(err)));
   page.on("requestfailed", (req) => {
-    if (isFontCdn(req.url())) return;
-    gate.failedRequests.push(`${req.url()} (${req.failure()?.errorText ?? "failed"})`);
+    const url = req.url();
+    if (isFontCdn(url)) return;
+    if (options.ignoreUncachedOptionalAssets && OPTIONAL_OFFLINE_ASSETS.test(url)) {
+      return;
+    }
+    gate.failedRequests.push(`${url} (${req.failure()?.errorText ?? "failed"})`);
   });
   page.on("request", (req) => {
     const url = req.url();
@@ -42,14 +67,22 @@ export function attachQualityGate(page: Page, origin: string): QualityGate {
   return gate;
 }
 
-export function assertQualityGate(gate: QualityGate) {
+export type AssertQualityGateOptions = {
+  /** Chromium + setOffline() meldt soms requestfailed terwijl SW cache levert. */
+  skipFailedRequests?: boolean;
+};
+
+export function assertQualityGate(
+  gate: QualityGate,
+  options: AssertQualityGateOptions = {},
+) {
   if (gate.consoleErrors.length) {
     throw new Error(`console.error:\n${gate.consoleErrors.join("\n")}`);
   }
   if (gate.pageErrors.length) {
     throw new Error(`pageerror:\n${gate.pageErrors.join("\n")}`);
   }
-  if (gate.failedRequests.length) {
+  if (!options.skipFailedRequests && gate.failedRequests.length) {
     throw new Error(`requestfailed:\n${gate.failedRequests.join("\n")}`);
   }
 }

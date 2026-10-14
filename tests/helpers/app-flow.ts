@@ -17,6 +17,23 @@ export async function clearAppStorage(page: Page) {
   await page.locator("#app").waitFor();
 }
 
+export async function clearServiceWorkerAndCaches(page: Page) {
+  await page.evaluate(async () => {
+    try {
+      if (navigator.serviceWorker) {
+        for (const r of await navigator.serviceWorker.getRegistrations()) {
+          await r.unregister();
+        }
+      }
+      if (self.caches) {
+        for (const k of await caches.keys()) await caches.delete(k);
+      }
+    } catch {
+      /* ignore */
+    }
+  });
+}
+
 export async function expectCover(page: Page) {
   await page.getByRole("button", { name: "Start je route" }).waitFor();
   await page.locator("#cover").waitFor();
