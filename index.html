@@ -254,6 +254,19 @@
 </style>
 </head>
 <body>
+<script>
+if(location.search.includes("reset-cache=1")){
+  window.__loopbaanGpsResetCache=true;
+  (async function(){
+    try{
+      if(self.caches){for(const k of await caches.keys())await caches.delete(k);}
+      if(navigator.serviceWorker){for(const r of await navigator.serviceWorker.getRegistrations())await r.unregister();}
+    }catch(e){}
+    const path=location.pathname||"/";
+    location.replace(path.endsWith("/")?path:path+"/");
+  })();
+}
+</script>
 <div id="app"></div>
 <div id="wipe-backdrop" class="wipe-backdrop noprint" hidden></div>
 <div id="wipe-dialog" class="wipe-dialog noprint" role="dialog" aria-modal="true" aria-labelledby="wipe-title" hidden>
@@ -1164,9 +1177,17 @@ function twResult(){
 window.go=(scr)=>{S.screen=scr;render();};
 
 window.addEventListener("beforeprint",()=>syncGespreksPrint());
-const hadSavedSession=loadState(); // herstelt een onderbroken sessie (zelfde tabblad/apparaat) automatisch
-if(!hadSavedSession) S.screen="cover";
-render();
+if(!window.__loopbaanGpsResetCache){
+  if("serviceWorker" in navigator){
+    const h=location.hostname;
+    if(location.protocol==="https:"||h==="localhost"||h==="127.0.0.1"){
+      try{navigator.serviceWorker.register("./sw.js");}catch(e){}
+    }
+  }
+  const hadSavedSession=loadState(); // herstelt een onderbroken sessie (zelfde tabblad/apparaat) automatisch
+  if(!hadSavedSession) S.screen="cover";
+  render();
+}
 </script>
 </body>
 </html>
