@@ -77,9 +77,21 @@ Detailregels per Playwright-uitvoer: `tests/test-results/release-short2.log`.
 
 ---
 
+## Tabel 4 — Gerichte controles (2026-10-14, na commit `322fe66`)
+
+| Punt | Bevinding | Bewijs |
+|------|-----------|--------|
+| **1 · Diff** | Sinds `a53f0d2^..HEAD` alleen `tests/RAPPORT.md` + `tests/specs/c-monkey.spec.ts`. T.o.v. `origin/main` (10 commits, 36 bestanden): app = PWA (fonts, lazy html2canvas, manifest, `sw.js`, icons); overige wijzigingen in `tests/`, `README.md`, scripts. `index.html`/`sw.js`/`manifest.webmanifest`: geen scoring-/content-wijzigingen in diff (alleen manifest-link, @font-face, reset-cache/SW-skip, lazy html2canvas). | `git diff --stat a53f0d2^..HEAD`; `git diff --stat origin/main..HEAD`; `git diff origin/main..HEAD -- index.html sw.js manifest.webmanifest` |
+| **2 · G offline WebKit** | **(b) App/SW:** niet-geprecachte `hbo-opleidingen-sociaal-domein-preview.webp` op resultaatscherm → SW `cacheFirstAsset` faalt offline → WebKit `pageerror` (geen JS-stack in Playwright, alleen SW-melding). Niet primair Playwright `setOffline`-beperking (zelfde flow faalt op echte asset-gap). | `iphone-se-webkit`, workers 1: `pageerror:\nFetchEvent.respondWith received an error: Error: offline\nCannot load http://127.0.0.1:4173/hbo-opleidingen-sociaal-domein-preview.webp.` + stack in test naar `quality-gate.ts:83`. Skip hersteld + comment in `g-offline.spec.ts` |
+| **3 · F axe m2** | **Geslaagd** met workers 1, retries 3 (~8,5 s). Eerdere timeout onder workers 4 = parallel/flake. `.choice` heeft `transition: transform .1s, border-color .15s` + `:active{transform:scale(.99)}` → kan stability onder load vertragen (niet gerepareerd). | `npx playwright test … -g "axe m2" --project=iphone-14-webkit --workers=1 --retries=3` → 1 passed |
+| **4 · Lighthouse PWA** | **Lighthouse 12.8.2** — categorieën: `performance`, `accessibility`, `best-practices`, `seo` (**geen `pwa`**). Test vervangen door manifest + icons + `navigator.serviceWorker.register('./sw.js')` in `h-lighthouse.spec.ts`. | `test-results/lh-all.json`; `npx playwright test specs/h-lighthouse.spec.ts -g "PWA manifest" --project=lighthouse-desktop` → 1 passed (2,7 s) |
+| **5 · Monkey 43–66** | **24/24 geslaagd** (infra-refusals uit full run, geen app-regressie). | `MONKEY_RUNS=67`, `--grep "monkey seed (4[3-9]|5[0-9]|6[0-6])"`, monkey-desktop, workers 1, ~2,7 min |
+
+---
+
 ## Niet gedraaid in deze controle
 
-- Volledige **monkey 200** seeds (alleen **20** met `MONKEY_RUNS=20`).
+- Volledige **monkey 200** seeds (alleen **20** met `MONKEY_RUNS=20` + her-run **43–66**).
 - Projecten: **iphone-se-chromium**, **iphone-14-chromium**, **ipad-chromium**, **live** (`LIVE=1`).
 - Volledige **404** matrix opnieuw in één run.
 - **G · offline** op WebKit (bewust skip).
@@ -89,10 +101,9 @@ Detailregels per Playwright-uitvoer: `tests/test-results/release-short2.log`.
 
 ## Open punten, op volgorde van risico voor de open dag
 
-1. **Lighthouse PWA score 0** op localhost in CI/lokaal — vóór deploy op **productie-HTTPS** PWA opnieuw verifiëren (manifest, SW, icons); kan false negative zijn op `127.0.0.1`.
-2. **Offline op iOS Safari (WebKit)** niet gedekt door G (skip); open dag = vooral **Chrome/Android** — acceptabel mits bewust, maar iPhone Safari offline niet gevalideerd.
-3. **Wissen offline** niet gecombineerd getest; alleen online **E** + offline **G** apart.
-4. **SW-update twee-build scenario** niet E2E — bij deploy cache-versie bump (`CACHE_NAME`) en rooktest op staging aanbevolen.
-5. **WebKit parallel flake** (axe m2 timeout) — bij volledige run `workers: 1` of retry overwegen (niet in deze stap gewijzigd).
-6. **Volledige monkey 200** + **ipad** + **live QR** nog vóór productie-deploy draaien.
-7. Eerdere full-run **monkey 44–66** failures waren **infra** (connection refused), geen regressie in app-code.
+1. **Offline op iOS Safari (WebKit)** niet gedekt door G (skip); precache mist optionele resultaat-preview — open dag vooral **Chrome/Android**.
+2. **Wissen offline** niet gecombineerd getest; alleen online **E** + offline **G** apart.
+3. **SW-update twee-build scenario** niet E2E — bij deploy cache-versie bump (`CACHE_NAME`) en rooktest op staging aanbevolen.
+4. **WebKit parallel flake** (axe m2 timeout) — bij volledige run `workers: 1` of retry overwegen.
+5. **Volledige monkey 200** + **ipad** + **live QR** nog vóór productie-deploy draaien.
+6. Eerdere full-run **monkey 44–66** failures waren **infra** (connection refused), bevestigd door her-run **24/24** geslaagd.
