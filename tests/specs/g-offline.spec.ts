@@ -18,6 +18,7 @@ import {
   saveCardImage,
 } from "../helpers/app-flow.js";
 import { ensureServiceWorkerControls } from "../helpers/service-worker.js";
+import { readServiceWorkerMeta } from "../helpers/sw-cache.js";
 
 test.describe("G · offline", () => {
   test("offline herladen, volledige doorloop en bewaar als afbeelding", async ({
@@ -26,26 +27,21 @@ test.describe("G · offline", () => {
     context,
     browserName,
   }) => {
-    // WebKit: SW gooit pageerror bij niet-geprecachte assets (bv. hbo-preview.webp op resultaat); Chromium gate negeert requestfailed.
-    test.skip(
-      browserName === "webkit",
-      "WebKit offline: FetchEvent pageerror op ontbrekende precache (hbo-preview.webp); open dag Chrome/Android",
-    );
+    const { cacheName } = readServiceWorkerMeta();
     await clearAppStorage(page);
     await clearServiceWorkerAndCaches(page);
     await ensureServiceWorkerControls(page);
     await context.setOffline(true);
     const gate = attachQualityGate(page, baseURL!, {
       ignoreOfflineResourceConsole: true,
-      ignoreUncachedOptionalAssets: true,
     });
     await page.reload({ waitUntil: "domcontentloaded" });
     const offlineReadyTimeout = browserName === "webkit" ? 25_000 : 12_000;
     await expect
       .poll(
         async () =>
-          page.evaluate(async () => {
-            const cache = await caches.open("loopbaangps-v1-2026-10");
+          page.evaluate(async (name) => {
+            const cache = await caches.open(name);
             const hit = await cache.match("fonts/dm-sans-latin-400-normal.woff2");
             if (hit) return true;
             try {
@@ -53,7 +49,7 @@ test.describe("G · offline", () => {
             } catch {
               return false;
             }
-          }),
+          }, cacheName),
         { timeout: offlineReadyTimeout },
       )
       .toBe(true);

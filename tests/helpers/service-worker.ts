@@ -1,6 +1,8 @@
 import type { Page } from "@playwright/test";
+import { readServiceWorkerMeta } from "./sw-cache.js";
 
 export async function ensureServiceWorkerControls(page: Page) {
+  const { cacheName } = readServiceWorkerMeta();
   await page.goto("/");
   await page.evaluate(async () => {
     if (!navigator.serviceWorker) return;
@@ -14,14 +16,14 @@ export async function ensureServiceWorkerControls(page: Page) {
     { timeout: 15_000 },
   );
   await page.waitForFunction(
-    async () => {
-      const cache = await caches.open("loopbaangps-v1-2026-10");
+    async (name) => {
+      const cache = await caches.open(name);
       const hit =
         (await cache.match("index.html")) || (await cache.match("./"));
       const font = await cache.match("fonts/dm-sans-latin-400-normal.woff2");
       return !!hit && !!font;
     },
-    null,
+    cacheName,
     { timeout: 15_000 },
   );
 }

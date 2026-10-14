@@ -48,7 +48,7 @@ export default defineConfig({
     },
     {
       name: "iphone-se-webkit",
-      testIgnore: [/c-monkey\.spec/, /h-lighthouse\.spec/, /i-live-qr\.spec/, /j-external/],
+      testIgnore: [/c-monkey\.spec/, /h-lighthouse\.spec/, /i-live-qr\.spec/],
       use: { ...devices["iPhone SE"] },
     },
     {
@@ -58,7 +58,7 @@ export default defineConfig({
     },
     {
       name: "iphone-14-webkit",
-      testIgnore: [/c-monkey\.spec/, /h-lighthouse\.spec/, /i-live-qr\.spec/, /j-external/],
+      testIgnore: [/c-monkey\.spec/, /h-lighthouse\.spec/, /i-live-qr\.spec/],
       use: { ...devices["iPhone 14"] },
     },
     {
